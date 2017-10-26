@@ -1,0 +1,16 @@
+# -*- python -*-
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "kinova_driver",
+    srcs = [
+        "kinova_driver.cc",
+    ],
+    deps = [
+        "@drake//drake/lcmtypes:jaco",
+        "@gflags//:gflags",
+        "@jaco_sdk//:usb_command_layer",
+        "@lcm",
+    ],
+)
