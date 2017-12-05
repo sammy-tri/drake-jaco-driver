@@ -17,6 +17,9 @@ cc_library(
     hdrs = [
         "Kinova.API.EthCommLayerUbuntu.h",
         "Kinova.API.UsbCommandLayerUbuntu.h",
+        "KinovaTypes.h",
+        "Kinova.API.CommLayerUbuntu.h",
         ],
+    linkstatic = 1,
     srcs = [":usb_command_layer_lib"],
 )

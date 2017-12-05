@@ -12,8 +12,8 @@
 // SDK refer to it from the USB command layer header but don't
 // actually include the definition...  So we depend on the include
 // order here.
-#include <Kinova.API.EthCommLayerUbuntu.h>
-#include <Kinova.API.UsbCommandLayerUbuntu.h>
+#include "Kinova.API.EthCommLayerUbuntu.h"
+#include "Kinova.API.UsbCommandLayerUbuntu.h"
 
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
