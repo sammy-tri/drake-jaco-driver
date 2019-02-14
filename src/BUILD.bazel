@@ -8,7 +8,7 @@ cc_binary(
         "kinova_driver.cc",
     ],
     deps = [
-        "@drake//drake/lcmtypes:jaco",
+        "@drake//lcmtypes:jaco",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
         "@lcm",
