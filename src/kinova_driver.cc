@@ -116,12 +116,14 @@ class KinovaDriver {
     lcm_status.joint_position.resize(lcm_status.num_joints, 0);
     lcm_status.joint_velocity.resize(lcm_status.num_joints, 0);
     lcm_status.joint_torque.resize(lcm_status.num_joints, 0);
+    lcm_status.joint_torque_external.resize(lcm_status.num_joints, 0);
     lcm_status.joint_current.resize(lcm_status.num_joints, 0);
 
     lcm_status.num_fingers = 3;
     lcm_status.finger_position.resize(lcm_status.num_fingers, 0);
     lcm_status.finger_velocity.resize(lcm_status.num_fingers, 0);
     lcm_status.finger_torque.resize(lcm_status.num_fingers, 0);
+    lcm_status.finger_torque_external.resize(lcm_status.num_fingers, 0);
     lcm_status.finger_current.resize(lcm_status.num_fingers, 0);
 
     AngularPosition current_position;
@@ -195,6 +197,18 @@ class KinovaDriver {
     lcm_status.finger_torque[0] = current_torque.Fingers.Finger1;
     lcm_status.finger_torque[1] = current_torque.Fingers.Finger2;
     lcm_status.finger_torque[2] = current_torque.Fingers.Finger3;
+
+    GetAngularForceGravityFree(current_torque);
+    lcm_status.joint_torque_external[0] = current_torque.Actuators.Actuator1;
+    lcm_status.joint_torque_external[1] = current_torque.Actuators.Actuator2;
+    lcm_status.joint_torque_external[2] = current_torque.Actuators.Actuator3;
+    lcm_status.joint_torque_external[3] = current_torque.Actuators.Actuator4;
+    lcm_status.joint_torque_external[4] = current_torque.Actuators.Actuator5;
+    lcm_status.joint_torque_external[5] = current_torque.Actuators.Actuator6;
+    lcm_status.joint_torque_external[6] = current_torque.Actuators.Actuator7;
+    lcm_status.finger_torque_external[0] = current_torque.Fingers.Finger1;
+    lcm_status.finger_torque_external[1] = current_torque.Fingers.Finger2;
+    lcm_status.finger_torque_external[2] = current_torque.Fingers.Finger3;
 
     lcm_status.utime = GetTime();
     lcm_.publish(FLAGS_lcm_status_channel, &lcm_status);

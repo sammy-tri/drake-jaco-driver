@@ -1,12 +1,12 @@
 # -*- python -*-
 
-workspace(name = "drake_iiwa_driver")
+workspace(name = "drake_jaco_driver")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 (DRAKE_COMMIT, DRAKE_CHECKSUM) = (
-    "ad6246e7da1f14a266273ceb0f4d75b2871671a7",
-    "1285f664603634e13a6a89c8c11dfd11d83d57f204e4ee3b8ac84ad9e4127ef2",
+    "92d8f2dc690e969a5d2ac83c2774d5d994d5c9d0",
+    "5198b317e5ab918be805153a752c216f98ea4a45dab5f51078990942ebda6f67",
 )
 # Before changing the COMMIT, temporarily uncomment the next line so that Bazel
 # displays the suggested new value for the CHECKSUM.
