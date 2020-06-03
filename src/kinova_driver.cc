@@ -1,9 +1,9 @@
-#include <signal.h>
 #include <sys/time.h>
 #include <unistd.h>
 
 #include <cassert>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 
 #include <gflags/gflags.h>
@@ -19,6 +19,8 @@
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
 
+#include "kinova_driver_common.h"
+
 namespace {
 // Kinova says 100Hz is the proper frequency for joint velocity
 // updates.  See
@@ -32,14 +34,11 @@ DEFINE_string(lcm_command_channel, kLcmCommandChannel,
               "Channel to receive LCM command messages on");
 DEFINE_string(lcm_status_channel, kLcmStatusChannel,
               "Channel to send LCM status messages on");
+DEFINE_string(optimal_z, "",
+              "A file containing the optimal z parameters for this robot.");
 
 
 namespace {
-void sighandler(int) {
-  std::cerr << "Closing API.\n";
-  CloseAPI();
-  exit(0);
-}
 
 int64_t GetTime() {
   struct timeval tv;
@@ -73,13 +72,15 @@ class KinovaDriver {
 
     commanded_velocity_.InitStruct();
     commanded_velocity_.LimitationsActive = 0;
-    commanded_velocity_.SynchroType = 0;
+    commanded_velocity_.SynchroType = 1;
     commanded_velocity_.Position.Type = ANGULAR_VELOCITY;
     commanded_velocity_.Position.HandMode = VELOCITY_MODE;
 
-    lcm_.subscribe(FLAGS_lcm_command_channel,
-                   &KinovaDriver::HandleCommandMessage,
-                   this);
+    lcm::Subscription* sub =
+        lcm_.subscribe(FLAGS_lcm_command_channel,
+                       &KinovaDriver::HandleCommandMessage,
+                       this);
+    sub->setQueueCapacity(2);
   }
 
   void Run() {
@@ -128,6 +129,7 @@ class KinovaDriver {
       fingers->Finger2 = to_degrees(command->finger_velocity[1]);
       fingers->Finger3 = to_degrees(command->finger_velocity[2]);
     }
+
     SendBasicTrajectory(commanded_velocity_);
   }
 
@@ -236,59 +238,57 @@ class KinovaDriver {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (signal(SIGINT, sighandler) == SIG_ERR) {
-    perror("Unable to set signal handler");
-  }
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (signal(SIGTERM, sighandler) == SIG_ERR) {
-    perror("Unable to set signal handler");
-  }
-
-  int result = InitAPI();
-  if (result != NO_ERROR_KINOVA) {
-    std::cerr << "Initialization failed: " << result << std::endl;
+  if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
   }
 
-  result = InitFingers();
-  if (result != NO_ERROR_KINOVA) {
-    std::cerr << "Finger initialization failed: " << result << std::endl;
-    return 1;
-  }
+  if (!FLAGS_optimal_z.empty()) {
+    std::ifstream z_file(FLAGS_optimal_z);
+    if (!z_file.is_open()) {
+      std::cerr << "Unable to open: " << FLAGS_optimal_z << "\n";
+      return 1;
+    }
+    float optimal_z[GRAVITY_PARAM_SIZE];
+    memset(optimal_z, 0, sizeof(optimal_z));
 
-  KinovaDevice list[MAX_KINOVA_DEVICE];
-  int device_count = GetDevices(list, result);
-  if (result != NO_ERROR_KINOVA) {
-    std::cerr << "Unable to list devices: " << result << std::endl;
-    return 1;
-  }
+    std::cout << "optimal z: ";
+    for (int i = 0; i < OPTIMAL_Z_PARAM_SIZE_7DOF; ++i) {
+      std::string line;
+      if (!std::getline(z_file, line)) {
+        std::cerr << "Failed reading z parameters\n";
+        return 1;
+      }
+      optimal_z[i] = std::atof(line.c_str());
+      std::cout << optimal_z[i] << " ";
+    }
+    std::cout <<  "\n";
 
-  if (device_count <= 0) {
-    std::cerr << "No devices found." << std::endl;
-    return 1;
-  }
+    // I'm not sure what to make of the arm returning JACO_NACK_NORMAL, but
+    // the parameters still seem to improve gravity estimation even when we
+    // get that result code.
+    int result = SetGravityOptimalZParam(optimal_z);
+    if (result != NO_ERROR_KINOVA && result != JACO_NACK_NORMAL) {
+      std::cerr << "Failed to set optimal z parameters: " << result << "\n";
+      //return 1;
+    }
 
-  if (device_count > 1) {
-    std::cerr << "Only one arm supported at this time." << std::endl;
-    return 1;
-  }
-
-  // TODO(sam.creasey) Support selecting a different arm.
-  const int device_id = 0;
-  std::cout << "Found USB robot: " << list[device_id].Model << " ("
-            << list[device_id].SerialNumber << ")"
-            << " Firmware: " << list[device_id].VersionMajor << "."
-            << list[device_id].VersionMinor << "."
-            << list[device_id].VersionRelease
-            << " Type: " << list[device_id].DeviceType
-            << " ID: " << list[device_id].DeviceID << std::endl;
-
-  if (list[device_id].DeviceType != eRobotType_Spherical_7DOF_Service) {
-    std::cerr << "Untested robot type: " << list[device_id].DeviceType
-              << std::endl;
+    result = SetGravityType(OPTIMAL);
+    if (result != NO_ERROR_KINOVA) {
+      std::cerr << "Failed to set gravity type: " << result << "\n";
+      return 1;
+    }
+    std::cout << "Set optimal Z parameters.\n";
+  } else {
+    int result = SetGravityType(MANUAL_INPUT);
+    if (result != NO_ERROR_KINOVA) {
+      std::cerr << "Failed to set gravity type: " << result << "\n";
+      return 1;
+    }
   }
 
   KinovaDriver().Run();
 
-  return device_count;
+  return 0;
 }

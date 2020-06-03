@@ -2,15 +2,37 @@
 
 package(default_visibility = ["//visibility:public"])
 
+cc_library(
+    name = "kinova_driver_common",
+    srcs = ["kinova_driver_common.cc"],
+    hdrs = ["kinova_driver_common.h"],
+    deps = [
+        "@jaco_sdk//:usb_command_layer",
+    ],
+)
+
 cc_binary(
     name = "kinova_driver",
     srcs = [
         "kinova_driver.cc",
     ],
     deps = [
+        ":kinova_driver_common",
         "@drake//lcmtypes:jaco",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
         "@lcm",
+    ],
+)
+
+cc_binary(
+    name = "kinova_calibration",
+    srcs = [
+        "kinova_calibration.cc",
+    ],
+    deps = [
+        ":kinova_driver_common",
+        "@gflags//:gflags",
+        "@jaco_sdk//:usb_command_layer",
     ],
 )
