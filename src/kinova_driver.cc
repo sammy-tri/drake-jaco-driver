@@ -36,7 +36,10 @@ DEFINE_string(lcm_status_channel, kLcmStatusChannel,
               "Channel to send LCM status messages on");
 DEFINE_string(optimal_z, "",
               "A file containing the optimal z parameters for this robot.");
-
+DEFINE_double(joint_command_factor, 1.,
+              "A multiplier to apply to received joint velocity commands.");
+DEFINE_double(joint_status_factor, 1.,
+              "A multiplier to apply to all reported joint velocities.");
 
 namespace {
 
@@ -113,13 +116,20 @@ class KinovaDriver {
     if (command->num_joints > 0) {
       assert(command->num_joints == 7);
       AngularInfo* actuators = &commanded_velocity_.Position.Actuators;
-      actuators->Actuator1 = to_degrees(command->joint_velocity[0]);
-      actuators->Actuator2 = to_degrees(command->joint_velocity[1]);
-      actuators->Actuator3 = to_degrees(command->joint_velocity[2]);
-      actuators->Actuator4 = to_degrees(command->joint_velocity[3]);
-      actuators->Actuator5 = to_degrees(command->joint_velocity[4]);
-      actuators->Actuator6 = to_degrees(command->joint_velocity[5]);
-      actuators->Actuator7 = to_degrees(command->joint_velocity[6]);
+      actuators->Actuator1 = to_degrees(
+          command->joint_velocity[0] * FLAGS_joint_command_factor);
+      actuators->Actuator2 = to_degrees(
+          command->joint_velocity[1] * FLAGS_joint_command_factor);
+      actuators->Actuator3 = to_degrees(
+          command->joint_velocity[2] * FLAGS_joint_command_factor);
+      actuators->Actuator4 = to_degrees(
+          command->joint_velocity[3] * FLAGS_joint_command_factor);
+      actuators->Actuator5 = to_degrees(
+          command->joint_velocity[4] * FLAGS_joint_command_factor);
+      actuators->Actuator6 = to_degrees(
+          command->joint_velocity[5] * FLAGS_joint_command_factor);
+      actuators->Actuator7 = to_degrees(
+          command->joint_velocity[6] * FLAGS_joint_command_factor);
     }
 
     if (command->num_fingers > 0) {
@@ -159,20 +169,21 @@ class KinovaDriver {
 
     AngularPosition current_velocity;
     GetAngularVelocity(current_velocity);
-    lcm_status_.joint_velocity[0] =
-        to_radians(current_velocity.Actuators.Actuator1);
-    lcm_status_.joint_velocity[1] =
-        to_radians(current_velocity.Actuators.Actuator2);
-    lcm_status_.joint_velocity[2] =
-        to_radians(current_velocity.Actuators.Actuator3);
-    lcm_status_.joint_velocity[3] =
-        to_radians(current_velocity.Actuators.Actuator4);
-    lcm_status_.joint_velocity[4] =
-        to_radians(current_velocity.Actuators.Actuator5);
-    lcm_status_.joint_velocity[5] =
-        to_radians(current_velocity.Actuators.Actuator6);
-    lcm_status_.joint_velocity[6] =
-        to_radians(current_velocity.Actuators.Actuator7);
+    lcm_status_.joint_velocity[0] = to_radians(
+        current_velocity.Actuators.Actuator1 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[1] = to_radians(
+        current_velocity.Actuators.Actuator2 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[2] = to_radians(
+        current_velocity.Actuators.Actuator3 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[3] = to_radians(
+        current_velocity.Actuators.Actuator4 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[4] = to_radians(
+        current_velocity.Actuators.Actuator5 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[5] = to_radians(
+        current_velocity.Actuators.Actuator6 * FLAGS_joint_status_factor);
+    lcm_status_.joint_velocity[6] = to_radians(
+        current_velocity.Actuators.Actuator7 * FLAGS_joint_status_factor);
+
     lcm_status_.finger_velocity[0] =
         to_radians(current_velocity.Fingers.Finger1);
     lcm_status_.finger_velocity[1] =
