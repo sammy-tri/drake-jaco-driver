@@ -30,6 +30,6 @@ add_default_repositories()
 
 new_local_repository(
     name = "jaco_sdk",
-    path = "/opt/JACO2SDK/API",
+    path = "/opt/JACO-SDK/API",
     build_file = "tools/jaco_sdk.BUILD"
     )
