@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include <gflags/gflags.h>
 #include <lcm/lcm-cpp.hpp>
@@ -34,12 +35,15 @@ DEFINE_string(lcm_command_channel, kLcmCommandChannel,
               "Channel to receive LCM command messages on");
 DEFINE_string(lcm_status_channel, kLcmStatusChannel,
               "Channel to send LCM status messages on");
+DEFINE_string(lcm_url, "", "LCM URL for Jaco driver");
 DEFINE_string(optimal_z, "",
               "A file containing the optimal z parameters for this robot.");
 DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
+DEFINE_string(serial, "",
+              "Serial number of robot to control.");
 
 namespace {
 
@@ -56,7 +60,8 @@ double to_radians(double degrees) { return degrees * (M_PI / 180.0); }
 
 class KinovaDriver {
  public:
-  KinovaDriver() {
+  KinovaDriver()
+      : lcm_(FLAGS_lcm_url) {
     // TODO(sam.creasey) figure out how to detect the correct number
     // of joints/fingers.
     lcm_status_.num_joints = 7;
@@ -66,12 +71,18 @@ class KinovaDriver {
     lcm_status_.joint_torque_external.resize(lcm_status_.num_joints, 0);
     lcm_status_.joint_current.resize(lcm_status_.num_joints, 0);
 
+    // TODO(sam-creasey) Find a way to determine if this should be set to zero
+    // when the hand is detached.  GetGripperStatus doesn't seem to return
+    // meaningfully different output (e.g. the gripper model may be reported
+    // as "No init" if a gripper is attached or not.)
     lcm_status_.num_fingers = 3;
-    lcm_status_.finger_position.resize(lcm_status_.num_fingers, 0);
-    lcm_status_.finger_velocity.resize(lcm_status_.num_fingers, 0);
-    lcm_status_.finger_torque.resize(lcm_status_.num_fingers, 0);
-    lcm_status_.finger_torque_external.resize(lcm_status_.num_fingers, 0);
-    lcm_status_.finger_current.resize(lcm_status_.num_fingers, 0);
+    if (lcm_status_.num_fingers) {
+      lcm_status_.finger_position.resize(lcm_status_.num_fingers, 0);
+      lcm_status_.finger_velocity.resize(lcm_status_.num_fingers, 0);
+      lcm_status_.finger_torque.resize(lcm_status_.num_fingers, 0);
+      lcm_status_.finger_torque_external.resize(lcm_status_.num_fingers, 0);
+      lcm_status_.finger_current.resize(lcm_status_.num_fingers, 0);
+    }
 
     commanded_velocity_.InitStruct();
     commanded_velocity_.LimitationsActive = 0;
@@ -160,12 +171,14 @@ class KinovaDriver {
         to_radians(current_position.Actuators.Actuator6);
     lcm_status_.joint_position[6] =
         to_radians(current_position.Actuators.Actuator7);
-    lcm_status_.finger_position[0] =
-        to_radians(current_position.Fingers.Finger1);
-    lcm_status_.finger_position[1] =
-        to_radians(current_position.Fingers.Finger2);
-    lcm_status_.finger_position[2] =
-        to_radians(current_position.Fingers.Finger3);
+    if (lcm_status_.num_fingers) {
+      lcm_status_.finger_position[0] =
+          to_radians(current_position.Fingers.Finger1);
+      lcm_status_.finger_position[1] =
+          to_radians(current_position.Fingers.Finger2);
+      lcm_status_.finger_position[2] =
+          to_radians(current_position.Fingers.Finger3);
+    }
 
     AngularPosition current_velocity;
     GetAngularVelocity(current_velocity);
@@ -184,12 +197,14 @@ class KinovaDriver {
     lcm_status_.joint_velocity[6] = to_radians(
         current_velocity.Actuators.Actuator7 * FLAGS_joint_status_factor);
 
-    lcm_status_.finger_velocity[0] =
-        to_radians(current_velocity.Fingers.Finger1);
-    lcm_status_.finger_velocity[1] =
-        to_radians(current_velocity.Fingers.Finger2);
-    lcm_status_.finger_velocity[2] =
-        to_radians(current_velocity.Fingers.Finger3);
+    if (lcm_status_.num_fingers) {
+      lcm_status_.finger_velocity[0] =
+          to_radians(current_velocity.Fingers.Finger1);
+      lcm_status_.finger_velocity[1] =
+          to_radians(current_velocity.Fingers.Finger2);
+      lcm_status_.finger_velocity[2] =
+          to_radians(current_velocity.Fingers.Finger3);
+    }
 
     AngularPosition current_torque;
     GetAngularForceGravityFree(current_torque);
@@ -200,9 +215,11 @@ class KinovaDriver {
     lcm_status_.joint_torque_external[4] = current_torque.Actuators.Actuator5;
     lcm_status_.joint_torque_external[5] = current_torque.Actuators.Actuator6;
     lcm_status_.joint_torque_external[6] = current_torque.Actuators.Actuator7;
-    lcm_status_.finger_torque_external[0] = current_torque.Fingers.Finger1;
-    lcm_status_.finger_torque_external[1] = current_torque.Fingers.Finger2;
-    lcm_status_.finger_torque_external[2] = current_torque.Fingers.Finger3;
+    if (lcm_status_.num_fingers) {
+      lcm_status_.finger_torque_external[0] = current_torque.Fingers.Finger1;
+      lcm_status_.finger_torque_external[1] = current_torque.Fingers.Finger2;
+      lcm_status_.finger_torque_external[2] = current_torque.Fingers.Finger3;
+    }
 
     // Send some fields at a lower rate to account for the delay imposed by
     // reading additional fields from the robot.
@@ -215,9 +232,11 @@ class KinovaDriver {
       lcm_status_.joint_torque[4] = current_torque.Actuators.Actuator5;
       lcm_status_.joint_torque[5] = current_torque.Actuators.Actuator6;
       lcm_status_.joint_torque[6] = current_torque.Actuators.Actuator7;
-      lcm_status_.finger_torque[0] = current_torque.Fingers.Finger1;
-      lcm_status_.finger_torque[1] = current_torque.Fingers.Finger2;
-      lcm_status_.finger_torque[2] = current_torque.Fingers.Finger3;
+      if (lcm_status_.num_fingers) {
+        lcm_status_.finger_torque[0] = current_torque.Fingers.Finger1;
+        lcm_status_.finger_torque[1] = current_torque.Fingers.Finger2;
+        lcm_status_.finger_torque[2] = current_torque.Fingers.Finger3;
+      }
     }
 
     if (msgs_sent_ % 5 == 0) {
@@ -230,9 +249,11 @@ class KinovaDriver {
       lcm_status_.joint_current[4] = current_current.Actuators.Actuator5;
       lcm_status_.joint_current[5] = current_current.Actuators.Actuator6;
       lcm_status_.joint_current[6] = current_current.Actuators.Actuator7;
-      lcm_status_.finger_current[0] = current_current.Fingers.Finger1;
-      lcm_status_.finger_current[1] = current_current.Fingers.Finger2;
-      lcm_status_.finger_current[2] = current_current.Fingers.Finger3;
+      if (lcm_status_.num_fingers) {
+        lcm_status_.finger_current[0] = current_current.Fingers.Finger1;
+        lcm_status_.finger_current[1] = current_current.Fingers.Finger2;
+        lcm_status_.finger_current[2] = current_current.Fingers.Finger3;
+      }
     }
 
     lcm_status_.utime = GetTime();
@@ -251,7 +272,7 @@ class KinovaDriver {
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (InitializeApi() != NO_ERROR_KINOVA) {
+  if (InitializeApi(FLAGS_serial) != NO_ERROR_KINOVA) {
     return 1;
   }
 

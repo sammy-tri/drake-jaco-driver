@@ -2,7 +2,7 @@
 
 This repository contains the application code used to communicate with
 the Kinova Jaco arm from Drake.  It currently supports communicating
-with a single arm via USB.
+with an arm via USB.
 
 ## Building the driver
 
@@ -27,9 +27,19 @@ The main polling loop runs at 100Hz, and does the following:
 
 ## Issues
 
-The arm periodically seems to stop communicating over USB.  The reason
-for this is not knon, but unplugging and plugging back in the USB port
-(and restarting the driver) usually seems to fix it.
+The arm periodically seems to stop communicating (or refuse to
+initialize) over USB.  The reason for this is not knon, but unplugging
+and plugging back in the USB port (and restarting the driver) usually
+seems to fix it.
+
+Enumerating the connected arms occasionaly returns garbage data in
+some of the device entries.  Generally starting the driver again will
+find the target device successfully, though this may require multiple
+attempts.
+
+A single driver instance cannot control multiple arms.  Multiple
+driver instances are required, either using different LCM URLs or
+different channel names.
 
 ## Calibration
 
