@@ -112,6 +112,7 @@ int InitializeApi(const std::string& serial) {
     return result;
   }
 
+  SetAngularControl();
 
   return NO_ERROR_KINOVA;
 }
