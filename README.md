@@ -7,7 +7,7 @@ with an arm via USB.
 ## Building the driver
 
 The `WORKSPACE` file assumes that the Kinova SDK is installed in
-`/opt/JACO2SDK/`.
+`/opt/JACO-SDK/`.
 
 To build, run `bazel build //src:kinova_driver`.  This will output an
 executable in `bazel-bin/src/kinova_driver`.
