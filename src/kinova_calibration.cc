@@ -21,13 +21,11 @@
 DEFINE_bool(gravity, false,
             "Run the gravity estimation sequence to determine the optimal Z "
             "parameters.  This can take some time to complete.");
-DEFINE_string(serial, "",
-              "Serial number of robot to control.");
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (InitializeApi(FLAGS_serial) != NO_ERROR_KINOVA) {
+  if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
   }
 

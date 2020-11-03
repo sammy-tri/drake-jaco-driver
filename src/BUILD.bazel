@@ -7,7 +7,19 @@ cc_library(
     srcs = ["kinova_driver_common.cc"],
     hdrs = ["kinova_driver_common.h"],
     deps = [
+        "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
+    ],
+)
+
+cc_library(
+    name = "kinova_driver_common_ethernet",
+    srcs = ["kinova_driver_common.cc"],
+    hdrs = ["kinova_driver_common.h"],
+    copts = ["-DUSE_ETHERNET"],
+    deps = [
+        "@gflags//:gflags",
+        "@jaco_sdk//:ethernet_command_layer",
     ],
 )
 
@@ -21,6 +33,21 @@ cc_binary(
         "@drake//lcmtypes:jaco",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
+        "@lcm",
+    ],
+)
+
+cc_binary(
+    name = "kinova_driver_ethernet",
+    srcs = [
+        "kinova_driver.cc",
+    ],
+    copts = ["-DUSE_ETHERNET"],
+    deps = [
+        ":kinova_driver_common_ethernet",
+        "@drake//lcmtypes:jaco",
+        "@gflags//:gflags",
+        "@jaco_sdk//:ethernet_command_layer",
         "@lcm",
     ],
 )
