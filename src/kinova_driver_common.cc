@@ -9,18 +9,6 @@
 
 #include <gflags/gflags.h>
 
-#include "Kinova.API.EthCommLayerUbuntu.h"
-
-#ifdef USE_ETHERNET
-#include "Kinova.API.EthCommandLayerUbuntu.h"
-
-// I don't know why the Kinova API defines this twice, and differently.  It
-// doesn't appear to be used.
-#undef COMM_LAYER_PATH
-#endif  // USE_ETHERNET
-
-#include "Kinova.API.UsbCommandLayerUbuntu.h"
-
 DEFINE_string(serial, "",
               "Serial number of robot to control.");
 
@@ -113,7 +101,7 @@ int InitializeApi() {
   int selected_device_id = -1;
   for (int device_id = 0; device_id < device_count; ++device_id) {
     if (IsValidDevice(list[device_id])) {
-      std::cerr << "Found USB robot " << device_id << " : "
+      std::cerr << "Found robot " << device_id << " : "
                 << list[device_id].Model << " ("
                 << list[device_id].SerialNumber << ")"
                 << " Firmware: " << list[device_id].VersionMajor << "."

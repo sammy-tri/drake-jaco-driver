@@ -10,21 +10,6 @@
 #include <gflags/gflags.h>
 #include <lcm/lcm-cpp.hpp>
 
-#ifdef USE_ETHERNET
-#include "Kinova.API.EthCommandLayerUbuntu.h"
-
-// I don't know why the Kinova API defines this twice, and differently.  It
-// doesn't appear to be used.
-#undef COMM_LAYER_PATH
-#endif  // USE_ETHERNET
-
-// Even though we don't use the ethernet layer, some versions of the
-// SDK refer to it from the USB command layer header but don't
-// actually include the definition...  So we depend on the include
-// order here.
-#include "Kinova.API.EthCommLayerUbuntu.h"
-#include "Kinova.API.UsbCommandLayerUbuntu.h"
-
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
 

@@ -9,13 +9,6 @@
 
 #include <gflags/gflags.h>
 
-// Even though we don't use the ethernet layer, some versions of the
-// SDK refer to it from the USB command layer header but don't
-// actually include the definition...  So we depend on the include
-// order here.
-#include "Kinova.API.EthCommLayerUbuntu.h"
-#include "Kinova.API.UsbCommandLayerUbuntu.h"
-
 #include "kinova_driver_common.h"
 
 DEFINE_bool(gravity, false,

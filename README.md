@@ -2,17 +2,25 @@
 
 This repository contains the application code used to communicate with
 the Kinova Jaco arm from Drake.  It currently supports communicating
-with an arm via USB.
+with an arm via USB or Ethernet.
 
 ## Building the driver
 
 The `WORKSPACE` file assumes that the Kinova SDK is installed in
 `/opt/JACO-SDK/`.
 
-To build, run `bazel build //src:kinova_driver`.  This will output an
-executable in `bazel-bin/src/kinova_driver`.
+To build, run `bazel build //...`.  This will output two versions of
+the driver: `bazel-bin/src/kinova_driver` and
+`bazel-bin/src/kinova_driver_ethernet`.
 
 ## Driver operation
+
+ To use the ethernet version, the arm needs to be configured
+appropriately in the "Ethernet" pane of `DevelopmentCenter` (from the
+Kinova SDK), and the appropriate IP and port numbers passed to
+`bazel-bin/src/kinova_driver_ethernet` on the command line.  See the
+usage message for ``bazel-bin/src/kinova_driver_ethernet` for specific
+flags.
 
 When controlling the arm, the driver operates in joint velocity mode.
 
