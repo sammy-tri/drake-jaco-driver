@@ -142,12 +142,12 @@ class KinovaDriver {
       fingers->Finger3 = to_degrees(command->finger_velocity[2]);
     }
 
-    MAYBE_ETHERNET(SendBasicTrajectory(commanded_velocity_));
+    SdkSendBasicTrajectory(commanded_velocity_);
   }
 
   void PublishStatus() {
     AngularPosition current_position;
-    MAYBE_ETHERNET(GetAngularPosition(current_position));
+    SdkGetAngularPosition(current_position);
     lcm_status_.joint_position[0] =
         to_radians(current_position.Actuators.Actuator1);
     lcm_status_.joint_position[1] =
@@ -172,7 +172,7 @@ class KinovaDriver {
     }
 
     AngularPosition current_velocity;
-    MAYBE_ETHERNET(GetAngularVelocity(current_velocity));
+    SdkGetAngularVelocity(current_velocity);
     lcm_status_.joint_velocity[0] = to_radians(
         current_velocity.Actuators.Actuator1 * FLAGS_joint_status_factor);
     lcm_status_.joint_velocity[1] = to_radians(
@@ -198,7 +198,7 @@ class KinovaDriver {
     }
 
     AngularPosition current_torque;
-    MAYBE_ETHERNET(GetAngularForceGravityFree(current_torque));
+    SdkGetAngularForceGravityFree(current_torque);
     lcm_status_.joint_torque_external[0] = current_torque.Actuators.Actuator1;
     lcm_status_.joint_torque_external[1] = current_torque.Actuators.Actuator2;
     lcm_status_.joint_torque_external[2] = current_torque.Actuators.Actuator3;
@@ -215,7 +215,7 @@ class KinovaDriver {
     // Send some fields at a lower rate to account for the delay imposed by
     // reading additional fields from the robot.
     if (msgs_sent_ % 2 == 0) {
-      MAYBE_ETHERNET(GetAngularForce(current_torque));
+      SdkGetAngularForce(current_torque);
       lcm_status_.joint_torque[0] = current_torque.Actuators.Actuator1;
       lcm_status_.joint_torque[1] = current_torque.Actuators.Actuator2;
       lcm_status_.joint_torque[2] = current_torque.Actuators.Actuator3;
@@ -232,7 +232,7 @@ class KinovaDriver {
 
     if (msgs_sent_ % 5 == 0) {
       AngularPosition current_current;
-      MAYBE_ETHERNET(GetAngularCurrent(current_current));
+      SdkGetAngularCurrent(current_current);
       lcm_status_.joint_current[0] = current_current.Actuators.Actuator1;
       lcm_status_.joint_current[1] = current_current.Actuators.Actuator2;
       lcm_status_.joint_current[2] = current_current.Actuators.Actuator3;
@@ -291,20 +291,20 @@ int main(int argc, char** argv) {
     // I'm not sure what to make of the arm returning JACO_NACK_NORMAL, but
     // the parameters still seem to improve gravity estimation even when we
     // get that result code.
-    int result = MAYBE_ETHERNET(SetGravityOptimalZParam(optimal_z));
+    int result = SdkSetGravityOptimalZParam(optimal_z);
     if (result != NO_ERROR_KINOVA && result != JACO_NACK_NORMAL) {
       std::cerr << "Failed to set optimal z parameters: " << result << "\n";
       //return 1;
     }
 
-    result = MAYBE_ETHERNET(SetGravityType(OPTIMAL));
+    result = SdkSetGravityType(OPTIMAL);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Failed to set gravity type: " << result << "\n";
       return 1;
     }
     std::cout << "Set optimal Z parameters.\n";
   } else {
-    int result = MAYBE_ETHERNET(SetGravityType(MANUAL_INPUT));
+    int result = SdkSetGravityType(MANUAL_INPUT);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Failed to set gravity type: " << result << "\n";
       return 1;

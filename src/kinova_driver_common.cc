@@ -27,7 +27,7 @@ const int kRxTimeoutMs = 1000;
 namespace {
 void sighandler(int) {
   std::cerr << "Closing API.\n";
-  MAYBE_ETHERNET(CloseAPI());
+  SdkCloseAPI();
   exit(0);
 }
 
@@ -84,7 +84,7 @@ int InitializeApi() {
 #endif
 
   std::cerr << "Getting devices" << std::endl;
-  int device_count = MAYBE_ETHERNET(GetDevices(list, result));
+  int device_count = SdkGetDevices(list, result);
 
   if (result != NO_ERROR_KINOVA) {
     std::cerr << "Unable to list devices: " << result << std::endl;
@@ -132,25 +132,25 @@ int InitializeApi() {
               << std::endl;
   }
 
-  result = MAYBE_ETHERNET(SetActiveDevice(list[selected_device_id]));
+  result = SdkSetActiveDevice(list[selected_device_id]);
   if (result != NO_ERROR_KINOVA) {
     std::cerr << "Setting active device failed: " << result << std::endl;
     return result;
   }
 
-  result = MAYBE_ETHERNET(StartControlAPI());
+  result = SdkStartControlAPI();
   if (result != NO_ERROR_KINOVA) {
     std::cerr << "Starting control API failed: " << result << std::endl;
     return result;
   }
 
-  result = MAYBE_ETHERNET(InitFingers());
+  result = SdkInitFingers();
   if (result != NO_ERROR_KINOVA) {
     std::cerr << "Finger initialization failed: " << result << std::endl;
     return result;
   }
 
-  MAYBE_ETHERNET(SetAngularControl());
+  SdkSetAngularControl();
 
   return NO_ERROR_KINOVA;
 }

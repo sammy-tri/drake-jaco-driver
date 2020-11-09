@@ -23,9 +23,39 @@
 // string "Ethernet_".  Define a macro we can use in other places to pick the
 // correct version at compile time.
 #ifdef USE_ETHERNET
-#define MAYBE_ETHERNET(x) Ethernet_##x
+
+#define SdkSendBasicTrajectory(x) Ethernet_SendBasicTrajectory(x);
+#define SdkGetAngularPosition(x) Ethernet_GetAngularPosition(x);
+#define SdkGetAngularVelocity(x) Ethernet_GetAngularVelocity(x);
+#define SdkGetAngularForceGravityFree(x) Ethernet_GetAngularForceGravityFree(x);
+#define SdkGetAngularForce(x) Ethernet_GetAngularForce(x);
+#define SdkGetAngularCurrent(x) Ethernet_GetAngularCurrent(x);
+#define SdkSetGravityOptimalZParam(x) Ethernet_SetGravityOptimalZParam(x);
+#define SdkSetGravityType(x) Ethernet_SetGravityType(x);
+#define SdkCloseAPI(x) Ethernet_CloseAPI(x);
+#define SdkGetDevices(x, y) Ethernet_GetDevices(x, y);
+#define SdkSetActiveDevice(x) Ethernet_SetActiveDevice(x);
+#define SdkStartControlAPI(x) Ethernet_StartControlAPI(x);
+#define SdkInitFingers(x) Ethernet_InitFingers(x);
+#define SdkSetAngularControl(x) Ethernet_SetAngularControl(x);
+
 #else
-#define MAYBE_ETHERNET(x) x
+
+#define SdkSendBasicTrajectory(x) SendBasicTrajectory(x);
+#define SdkGetAngularPosition(x) GetAngularPosition(x);
+#define SdkGetAngularVelocity(x) GetAngularVelocity(x);
+#define SdkGetAngularForceGravityFree(x) GetAngularForceGravityFree(x);
+#define SdkGetAngularForce(x) GetAngularForce(x);
+#define SdkGetAngularCurrent(x) GetAngularCurrent(x);
+#define SdkSetGravityOptimalZParam(x) SetGravityOptimalZParam(x);
+#define SdkSetGravityType(x) SetGravityType(x);
+#define SdkCloseAPI(x) CloseAPI(x);
+#define SdkGetDevices(x, y) GetDevices(x, y);
+#define SdkSetActiveDevice(x) SetActiveDevice(x);
+#define SdkStartControlAPI(x) StartControlAPI(x);
+#define SdkInitFingers(x) InitFingers(x);
+#define SdkSetAngularControl(x) SetAngularControl(x);
+
 #endif  // USE_ETHERNET
 
 
