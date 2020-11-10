@@ -10,13 +10,6 @@
 #include <gflags/gflags.h>
 #include <lcm/lcm-cpp.hpp>
 
-// Even though we don't use the ethernet layer, some versions of the
-// SDK refer to it from the USB command layer header but don't
-// actually include the definition...  So we depend on the include
-// order here.
-#include "Kinova.API.EthCommLayerUbuntu.h"
-#include "Kinova.API.UsbCommandLayerUbuntu.h"
-
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
 
@@ -42,8 +35,6 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
-DEFINE_string(serial, "",
-              "Serial number of robot to control.");
 
 namespace {
 
@@ -151,12 +142,12 @@ class KinovaDriver {
       fingers->Finger3 = to_degrees(command->finger_velocity[2]);
     }
 
-    SendBasicTrajectory(commanded_velocity_);
+    SdkSendBasicTrajectory(commanded_velocity_);
   }
 
   void PublishStatus() {
     AngularPosition current_position;
-    GetAngularPosition(current_position);
+    SdkGetAngularPosition(current_position);
     lcm_status_.joint_position[0] =
         to_radians(current_position.Actuators.Actuator1);
     lcm_status_.joint_position[1] =
@@ -181,7 +172,7 @@ class KinovaDriver {
     }
 
     AngularPosition current_velocity;
-    GetAngularVelocity(current_velocity);
+    SdkGetAngularVelocity(current_velocity);
     lcm_status_.joint_velocity[0] = to_radians(
         current_velocity.Actuators.Actuator1 * FLAGS_joint_status_factor);
     lcm_status_.joint_velocity[1] = to_radians(
@@ -207,7 +198,7 @@ class KinovaDriver {
     }
 
     AngularPosition current_torque;
-    GetAngularForceGravityFree(current_torque);
+    SdkGetAngularForceGravityFree(current_torque);
     lcm_status_.joint_torque_external[0] = current_torque.Actuators.Actuator1;
     lcm_status_.joint_torque_external[1] = current_torque.Actuators.Actuator2;
     lcm_status_.joint_torque_external[2] = current_torque.Actuators.Actuator3;
@@ -224,7 +215,7 @@ class KinovaDriver {
     // Send some fields at a lower rate to account for the delay imposed by
     // reading additional fields from the robot.
     if (msgs_sent_ % 2 == 0) {
-      GetAngularForce(current_torque);
+      SdkGetAngularForce(current_torque);
       lcm_status_.joint_torque[0] = current_torque.Actuators.Actuator1;
       lcm_status_.joint_torque[1] = current_torque.Actuators.Actuator2;
       lcm_status_.joint_torque[2] = current_torque.Actuators.Actuator3;
@@ -241,7 +232,7 @@ class KinovaDriver {
 
     if (msgs_sent_ % 5 == 0) {
       AngularPosition current_current;
-      GetAngularCurrent(current_current);
+      SdkGetAngularCurrent(current_current);
       lcm_status_.joint_current[0] = current_current.Actuators.Actuator1;
       lcm_status_.joint_current[1] = current_current.Actuators.Actuator2;
       lcm_status_.joint_current[2] = current_current.Actuators.Actuator3;
@@ -272,7 +263,7 @@ class KinovaDriver {
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (InitializeApi(FLAGS_serial) != NO_ERROR_KINOVA) {
+  if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
   }
 
@@ -300,20 +291,20 @@ int main(int argc, char** argv) {
     // I'm not sure what to make of the arm returning JACO_NACK_NORMAL, but
     // the parameters still seem to improve gravity estimation even when we
     // get that result code.
-    int result = SetGravityOptimalZParam(optimal_z);
+    int result = SdkSetGravityOptimalZParam(optimal_z);
     if (result != NO_ERROR_KINOVA && result != JACO_NACK_NORMAL) {
       std::cerr << "Failed to set optimal z parameters: " << result << "\n";
       //return 1;
     }
 
-    result = SetGravityType(OPTIMAL);
+    result = SdkSetGravityType(OPTIMAL);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Failed to set gravity type: " << result << "\n";
       return 1;
     }
     std::cout << "Set optimal Z parameters.\n";
   } else {
-    int result = SetGravityType(MANUAL_INPUT);
+    int result = SdkSetGravityType(MANUAL_INPUT);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Failed to set gravity type: " << result << "\n";
       return 1;

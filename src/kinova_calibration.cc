@@ -9,25 +9,16 @@
 
 #include <gflags/gflags.h>
 
-// Even though we don't use the ethernet layer, some versions of the
-// SDK refer to it from the USB command layer header but don't
-// actually include the definition...  So we depend on the include
-// order here.
-#include "Kinova.API.EthCommLayerUbuntu.h"
-#include "Kinova.API.UsbCommandLayerUbuntu.h"
-
 #include "kinova_driver_common.h"
 
 DEFINE_bool(gravity, false,
             "Run the gravity estimation sequence to determine the optimal Z "
             "parameters.  This can take some time to complete.");
-DEFINE_string(serial, "",
-              "Serial number of robot to control.");
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (InitializeApi(FLAGS_serial) != NO_ERROR_KINOVA) {
+  if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
   }
 
