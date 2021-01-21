@@ -1,3 +1,6 @@
+January 21 2021
+  Initial change notification to support arms that are supported by kinova robot arms
+
 # drake-jaco-driver
 
 This repository contains the application code used to communicate with
