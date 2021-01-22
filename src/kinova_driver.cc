@@ -51,11 +51,19 @@ double to_radians(double degrees) { return degrees * (M_PI / 180.0); }
 
 class KinovaDriver {
  public:
-  KinovaDriver()
+  KinovaDriver(int devicetype)
       : lcm_(FLAGS_lcm_url) {
     // TODO(sam.creasey) figure out how to detect the correct number
-    // of joints/fingers.
-    lcm_status_.num_joints = 7;
+    if(devicetype ==eRobotType_Spherical_7DOF_Service )
+    {
+     std::cout<<"number of joints on robot are 7\n";
+     lcm_status_.num_joints = 7;
+    }
+    else
+    {
+     std::cout<<"number of joints on robot are 6\n";
+     lcm_status_.num_joints = 6;
+    }
     lcm_status_.joint_position.resize(lcm_status_.num_joints, 0);
     lcm_status_.joint_velocity.resize(lcm_status_.num_joints, 0);
     lcm_status_.joint_torque.resize(lcm_status_.num_joints, 0);
@@ -94,6 +102,7 @@ class KinovaDriver {
     int64_t time_for_next_step = GetTime();
     while (true) {
       time_for_next_step += kKinovaUpdateIntervalUs;
+      
       PublishStatus();
 
       int64_t remaining_time = time_for_next_step - GetTime();
@@ -146,6 +155,7 @@ class KinovaDriver {
   }
 
   void PublishStatus() {
+
     AngularPosition current_position;
     SdkGetAngularPosition(current_position);
     lcm_status_.joint_position[0] =
@@ -250,6 +260,7 @@ class KinovaDriver {
     lcm_status_.utime = GetTime();
     lcm_.publish(FLAGS_lcm_status_channel, &lcm_status_);
     ++msgs_sent_;
+
   }
 
   lcm::LCM lcm_;
@@ -262,6 +273,9 @@ class KinovaDriver {
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  std::cout<<"*************************************\n";
+  std::cout<<"***** Welcome to kinova driver*******\n";
+  std::cout<<"*************************************\n";
 
   if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
@@ -310,8 +324,11 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
-
-  KinovaDriver().Run();
+  std::cout << "launching the kinova run command\n";
+  int devicetype = 0;
+  devicetype = GetSelectedDeviceType();
+  KinovaDriver(devicetype).Run();
+  std::cout << "termination the kinova run command\n";
 
   return 0;
 }
