@@ -67,3 +67,4 @@
 /// Please ensure that gflags::ParseCommandLineFlags has been called before
 /// infoking this function!
 int InitializeApi();
+int GetSelectedDeviceType(void);
