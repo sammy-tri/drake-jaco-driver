@@ -3,6 +3,9 @@
 
 #include <cassert>
 #include <cmath>
+#include <csignal>
+#include <cstdint>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -37,6 +40,59 @@ DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
 
 namespace {
+
+void HandleWatchdogSignal(int signal) noexcept {
+  std::cerr << "Lost communication with robot.  Exiting.";
+  abort();
+}
+
+timer_t CreateWatchdog() {
+  char err_buf[1024];
+
+  // TODO(sam.creasey) If we ever want to create more than one of these, we
+  // may need a mechanism to either have them choose different signals or be
+  // smart about sharing one and properly registering/unregistering the signal
+  // handler.
+  const int signum = SIGRTMIN;
+
+  struct sigaction sa{};
+  memset(&sa, 0, sizeof(sa));
+
+  // Check to make sure something else hasn't grabbed our signal.
+  if (sigaction(signum, nullptr, &sa) == -1) {
+    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
+    throw std::runtime_error(
+        std::string("Unable to check signal for watchdog: ") + err);
+  }
+
+  if (sa.sa_handler != SIG_DFL) {
+    throw std::runtime_error(
+        "Not creating watchdog: signal handler already registered.");
+  }
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = HandleWatchdogSignal;
+  sigemptyset(&sa.sa_mask);
+  if (sigaction(signum, &sa, nullptr) == -1) {
+    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
+    throw std::runtime_error(
+        std::string("Unable to register watchdog handler: ") + err);
+  }
+
+  struct sigevent sev{};
+  memset(&sev, 0, sizeof(sev));
+  sev.sigev_notify = SIGEV_SIGNAL;
+  sev.sigev_signo = signum;
+
+  timer_t timer_id{};
+  if (timer_create(CLOCK_MONOTONIC, &sev, &timer_id) == -1) {
+    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
+    throw std::runtime_error(
+        std::string("Unable to create watchdog timer: ") + err);
+  }
+
+  return timer_id;
+}
 
 int64_t GetTime() {
   struct timeval tv;
@@ -86,6 +142,17 @@ class KinovaDriver {
                        &KinovaDriver::HandleCommandMessage,
                        this);
     sub->setQueueCapacity(2);
+
+    // We're trying to determine that the robot went away entirely, not
+    // monitor realtime performance.  Set the watchdog to something large.
+    const int timeout_usec = 1000000;
+    memset(&timer_value_, 0, sizeof(timer_value_));
+    timer_value_.it_interval.tv_sec = timeout_usec / 1000000;
+    timer_value_.it_interval.tv_nsec = (timeout_usec % 1000000) * 1000;
+    timer_value_.it_value.tv_sec = timer_value_.it_interval.tv_sec;
+    timer_value_.it_value.tv_nsec = timer_value_.it_interval.tv_nsec;
+
+    timer_id_ = CreateWatchdog();
   }
 
   void Run() {
@@ -93,6 +160,8 @@ class KinovaDriver {
     // how long until we want to publish again.
     int64_t time_for_next_step = GetTime();
     while (true) {
+      Pet();
+
       time_for_next_step += kKinovaUpdateIntervalUs;
       PublishStatus();
 
@@ -110,6 +179,16 @@ class KinovaDriver {
   }
 
  private:
+  void Pet() {
+    char err_buf[1024];
+
+    if (timer_settime(timer_id_, 0, &timer_value_, NULL) == -1) {
+      char* err = strerror_r(errno, err_buf, sizeof(err_buf));
+      throw std::runtime_error(
+          std::string("Unable to start watchdog timer: ") + err);
+    }
+  }
+
   void HandleCommandMessage(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const drake::lcmt_jaco_command* command) {
@@ -256,6 +335,8 @@ class KinovaDriver {
   drake::lcmt_jaco_status lcm_status_{};
   TrajectoryPoint commanded_velocity_;
   int64_t msgs_sent_{0};
+  timer_t timer_id_{};
+  struct itimerspec timer_value_{};
 };
 
 }  // namespace
