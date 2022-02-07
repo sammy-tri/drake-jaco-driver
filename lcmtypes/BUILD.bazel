@@ -1,0 +1,31 @@
+# -*- python -*-
+
+package(default_visibility = ["//visibility:public"])
+
+load(
+    "@drake//tools/workspace/lcm:lcm.bzl",
+    "lcm_cc_library",
+    "lcm_java_library",
+    "lcm_py_library",
+)
+
+LCM_SRCS = glob(["*.lcm"])
+
+lcm_cc_library(
+    name = "lcmtypes_drake_jaco_driver_cc",
+    lcm_package = "drake_jaco_driver",
+    lcm_srcs = LCM_SRCS,
+)
+
+lcm_py_library(
+    name = "lcmtypes_drake_jaco_driver_py",
+    add_current_package_to_imports = False,
+    lcm_package = "drake_jaco_driver",
+    lcm_srcs = LCM_SRCS,
+)
+
+lcm_java_library(
+    name = "lcmtypes_drake_jaco_driver_java",
+    lcm_package = "drake_jaco_driver",
+    lcm_srcs = LCM_SRCS,
+)

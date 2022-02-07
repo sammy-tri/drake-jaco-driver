@@ -15,6 +15,7 @@
 
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
+#include "drake_jaco_driver/lcmt_jaco_extended_status.hpp"
 
 #include "kinova_driver_common.h"
 
@@ -25,12 +26,15 @@ namespace {
 const int kKinovaUpdateIntervalUs = 10000;
 const char* kLcmCommandChannel = "KINOVA_JACO_COMMAND";
 const char* kLcmStatusChannel = "KINOVA_JACO_STATUS";
+const char* kLcmExtendedStatusChannel = "KINOVA_JACO_EXTENDED_STATUS";
 }  // namespace
 
 DEFINE_string(lcm_command_channel, kLcmCommandChannel,
               "Channel to receive LCM command messages on");
 DEFINE_string(lcm_status_channel, kLcmStatusChannel,
               "Channel to send LCM status messages on");
+DEFINE_string(lcm_extended_status_channel, kLcmExtendedStatusChannel,
+              "Channel to send LCM extended status messages on");
 DEFINE_string(lcm_url, "", "LCM URL for Jaco driver");
 DEFINE_string(optimal_z, "",
               "A file containing the optimal z parameters for this robot.");
@@ -129,6 +133,15 @@ class KinovaDriver {
       lcm_status_.finger_torque.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_torque_external.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_current.resize(lcm_status_.num_fingers, 0);
+    }
+
+    lcm_extended_status_.num_joints = lcm_status_.num_joints;
+    lcm_extended_status_.actuator_temperature.resize(
+        lcm_extended_status_.num_joints, 0);
+    lcm_extended_status_.num_fingers = lcm_status_.num_fingers;
+    if (lcm_extended_status_.num_fingers) {
+      lcm_extended_status_.finger_temperature.resize(
+        lcm_extended_status_.num_fingers, 0);
     }
 
     commanded_velocity_.InitStruct();
@@ -309,7 +322,7 @@ class KinovaDriver {
       }
     }
 
-    if (msgs_sent_ % 5 == 0) {
+    if (msgs_sent_ % 10 == 0) {
       AngularPosition current_current;
       SdkGetAngularCurrent(current_current);
       lcm_status_.joint_current[0] = current_current.Actuators.Actuator1;
@@ -326,6 +339,41 @@ class KinovaDriver {
       }
     }
 
+    if (msgs_sent_ % 10 == 5) {
+      GeneralInformations general_info;
+      SdkGetGeneralInformations(general_info);
+      lcm_extended_status_.time_from_startup = general_info.TimeFromStartup;
+      lcm_extended_status_.supply_voltage = general_info.SupplyVoltage;
+      lcm_extended_status_.total_current = general_info.TotalCurrent;
+      lcm_extended_status_.power = general_info.Power;
+      lcm_extended_status_.average_power = general_info.AveragePower;
+
+      lcm_extended_status_.acceleration[0] = general_info.AccelerationX;
+      lcm_extended_status_.acceleration[1] = general_info.AccelerationY;
+      lcm_extended_status_.acceleration[2] = general_info.AccelerationZ;
+
+      for (int i = 0; i < 4; ++i) {
+        lcm_extended_status_.peripherals_connected[i] =
+            general_info.PeripheralsConnected[i];
+        lcm_extended_status_.peripherals_device_id[i] =
+            general_info.PeripheralsDeviceID[i];
+      }
+
+
+      for (int i = 0; i < lcm_extended_status_.num_joints; ++i) {
+        lcm_extended_status_.actuator_temperature[i] =
+            general_info.ActuatorsTemperatures[i];
+      }
+
+      for (int i = 0; i < lcm_extended_status_.num_fingers; ++i) {
+        lcm_extended_status_.finger_temperature[i] =
+            general_info.FingersTemperatures[i];
+      }
+
+      lcm_extended_status_.utime = GetTime();
+      lcm_.publish(FLAGS_lcm_extended_status_channel, &lcm_extended_status_);
+    }
+
     lcm_status_.utime = GetTime();
     lcm_.publish(FLAGS_lcm_status_channel, &lcm_status_);
     ++msgs_sent_;
@@ -333,6 +381,7 @@ class KinovaDriver {
 
   lcm::LCM lcm_;
   drake::lcmt_jaco_status lcm_status_{};
+  drake_jaco_driver::lcmt_jaco_extended_status lcm_extended_status_{};
   TrajectoryPoint commanded_velocity_;
   int64_t msgs_sent_{0};
   timer_t timer_id_{};

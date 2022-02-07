@@ -1,0 +1,22 @@
+package drake_jaco_driver;
+
+struct lcmt_jaco_extended_status {
+  int64_t utime;
+
+  double time_from_startup;
+  float supply_voltage;  // V
+  float total_current;   // A
+  float power;  // W
+  float average_power;  // W
+
+  float acceleration[3];  // G
+
+  int32_t peripherals_connected[4];
+  int32_t peripherals_device_id[4];
+
+  int8_t num_joints;
+  float actuator_temperature[num_joints];
+
+  int8_t num_fingers;
+  float finger_temperature[num_fingers];
+}

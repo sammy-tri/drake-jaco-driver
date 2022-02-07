@@ -38,6 +38,8 @@
 #define SdkStartControlAPI(x) Ethernet_StartControlAPI(x);
 #define SdkInitFingers(x) Ethernet_InitFingers(x);
 #define SdkSetAngularControl(x) Ethernet_SetAngularControl(x);
+#define SdkGetSensorsInfo(x) Ethernet_GetSensorsInfo(x);
+#define SdkGetGeneralInformations(x) Ethernet_GetGeneralInformations(x);
 
 #else
 
@@ -55,6 +57,8 @@
 #define SdkStartControlAPI(x) StartControlAPI(x);
 #define SdkInitFingers(x) InitFingers(x);
 #define SdkSetAngularControl(x) SetAngularControl(x);
+#define SdkGetSensorsInfo(x) GetSensorsInfo(x);
+#define SdkGetGeneralInformations(x) GetGeneralInformations(x);
 
 #endif  // USE_ETHERNET
 
