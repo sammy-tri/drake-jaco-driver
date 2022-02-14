@@ -19,9 +19,10 @@ lcm_cc_library(
 
 lcm_py_library(
     name = "lcmtypes_drake_jaco_driver_py",
-    add_current_package_to_imports = False,
+    add_current_package_to_imports = True,
     lcm_package = "drake_jaco_driver",
     lcm_srcs = LCM_SRCS,
+    deps = ["//:module_py"],
 )
 
 lcm_java_library(

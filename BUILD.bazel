@@ -1,0 +1,10 @@
+# -*- python -*-
+
+package(default_visibility = ["//visibility:public"])
+
+# Declare a top-level model to facilitate importing the lcmtypes in
+# external packages.
+py_library(
+    name = "module_py",
+    srcs = ["__init__.py"],
+)
