@@ -27,6 +27,7 @@ const int kKinovaUpdateIntervalUs = 10000;
 const char* kLcmCommandChannel = "KINOVA_JACO_COMMAND";
 const char* kLcmStatusChannel = "KINOVA_JACO_STATUS";
 const char* kLcmExtendedStatusChannel = "KINOVA_JACO_EXTENDED_STATUS";
+const double kMaxTimestampOffset = 0.1;  // Arbitrary, may need tuning.
 }  // namespace
 
 DEFINE_string(lcm_command_channel, kLcmCommandChannel,
@@ -42,6 +43,10 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
+DEFINE_double(max_timestamp_offset, kMaxTimestampOffset,
+              "Maximum difference in the utime field for incoming command "
+              "messages (compared to the most recent status message) "
+              "to be considered valid (in seconds).");
 
 namespace {
 
@@ -205,6 +210,24 @@ class KinovaDriver {
   void HandleCommandMessage(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const drake::lcmt_jaco_command* command) {
+
+    if (std::abs(command->utime - lcm_status_.utime) >
+        FLAGS_max_timestamp_offset * 1e6) {
+      if (command_time_valid_) {
+        std::cerr << "Command received with invalid timestamp "
+                  << "(status " << lcm_status_.utime
+                  << " command " << command->utime
+                  << "), pausing motion.\n";
+      }
+      command_time_valid_ = false;
+      return;
+    } else {
+      if (!command_time_valid_) {
+        std::cerr << "Valid command received, starting motion\n";
+      }
+      command_time_valid_ = true;
+    }
+
     // TODO(sam.creasey) figure out how to detect the correct number
     // of joints/fingers.
     if (command->num_joints > 0) {
@@ -386,6 +409,7 @@ class KinovaDriver {
   int64_t msgs_sent_{0};
   timer_t timer_id_{};
   struct itimerspec timer_value_{};
+  bool command_time_valid_{false};
 };
 
 }  // namespace
