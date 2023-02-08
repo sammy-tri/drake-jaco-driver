@@ -43,7 +43,9 @@
 #define SdkSetTorqueZero(x) Ethernet_SetTorqueZero(x);
 #define SdkRunGravityZEstimationSequence7DOF(x, y) Ethernet_RunGravityZEstimationSequence7DOF(x, y);
 #define SdkSetActuatorPID(a, p, i, d) Ethernet_SetActuatorPID(a, p, i, d);
-
+#define SdkOpenRS485_Read(x, y, z) Ethernet_Communication_OpenRS485_Read(x, y, z);
+#define SdkOpenRS485_Write(x, y, z) Ethernet_Communication_OpenRS485_Write(x, y, z);
+#define SdkOpenRS485_Activate() Ethernet_Communication_OpenRS485_Activate();
 #else
 
 #define SdkSendBasicTrajectory(x) SendBasicTrajectory(x);
@@ -65,6 +67,9 @@
 #define SdkSetTorqueZero(x) SetTorqueZero(x);
 #define SdkRunGravityZEstimationSequence7DOF(x, y) RunGravityZEstimationSequence7DOF(x, y);
 #define SdkSetActuatorPID(a, p, i, d) SetActuatorPID(a, p, i, d);
+#define SdkOpenRS485_Read(x, y, z) Communication_OpenRS485_Read(x, y, z);
+#define SdkOpenRS485_Write(x, y, z) Communication_OpenRS485_Write(x, y, z);
+#define SdkOpenRS485_Activate() Communication_OpenRS485_Activate();
 
 #endif  // USE_ETHERNET
 
@@ -77,3 +82,13 @@
 /// Please ensure that gflags::ParseCommandLineFlags has been called before
 /// infoking this function!
 int InitializeApi();
+int SetGravity(const std::string& optimal_z);
+
+timer_t CreateWatchdog();
+
+int64_t GetTime();
+
+// The Kinova SDK communicates joint positions in degrees, which would
+// be unusual in drake.  Convert to/from radians appropriately.
+double to_degrees(double radians);
+double to_radians(double degrees);
