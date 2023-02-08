@@ -45,7 +45,12 @@
 #define SdkSwitchTrajectoryTorque(x) Ethernet_SwitchTrajectoryTorque(x);
 #define SdkGetTrajectoryTorqueMode(x) Ethernet_GetTrajectoryTorqueMode(x);
 #define SdkSendAngularTorqueCommand(x) Ethernet_SendAngularTorqueCommand(x);
+#define SdkSetTorqueInactivityType(x) Ethernet_SetTorqueInactivityType(x);
+#define SdkSetSwitchThreshold(x) Ethernet_SetSwitchThreshold(x);
 
+#define SdkOpenRS485_Read(x, y, z) Ethernet_Communication_OpenRS485_Read(x, y, z);
+#define SdkOpenRS485_Write(x, y, z) Ethernet_Communication_OpenRS485_Write(x, y, z);
+#define SdkOpenRS485_Activate() Ethernet_Communication_OpenRS485_Activate();
 #else
 
 #define SdkSendBasicTrajectory(x) SendBasicTrajectory(x);
@@ -69,6 +74,8 @@
 #define SdkSwitchTrajectoryTorque(x) SwitchTrajectoryTorque(x);
 #define SdkGetTrajectoryTorqueMode(x) GetTrajectoryTorqueMode(x);
 #define SdkSendAngularTorqueCommand(x) SendAngularTorqueCommand(x);
+#define SdkSetTorqueInactivityType(x) SetTorqueInactivityType(x);
+#define SdkSetSwitchThreshold(x) SetSwitchThreshold(x);
 
 #endif  // USE_ETHERNET
 
@@ -81,3 +88,13 @@
 /// Please ensure that gflags::ParseCommandLineFlags has been called before
 /// infoking this function!
 int InitializeApi();
+int SetGravity(const std::string& optimal_z);
+
+timer_t CreateWatchdog();
+
+int64_t GetTime();
+
+// The Kinova SDK communicates joint positions in degrees, which would
+// be unusual in drake.  Convert to/from radians appropriately.
+double to_degrees(double radians);
+double to_radians(double degrees);

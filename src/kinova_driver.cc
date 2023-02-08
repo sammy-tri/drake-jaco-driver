@@ -1,8 +1,6 @@
-#include <sys/time.h>
 #include <unistd.h>
 
 #include <cassert>
-#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <ctime>
@@ -69,70 +67,6 @@ const double kTorqueOnlyKp[kMaxNumJoints] = {
 const double kTorqueOnlyKd[kMaxNumJoints] = {
     5, 5, 5, 5, 3.5, 3.5, 3.5};
 
-void HandleWatchdogSignal(int signal) noexcept {
-  std::cerr << "Lost communication with robot.  Exiting.";
-  abort();
-}
-
-timer_t CreateWatchdog() {
-  char err_buf[1024];
-
-  // TODO(sam.creasey) If we ever want to create more than one of these, we
-  // may need a mechanism to either have them choose different signals or be
-  // smart about sharing one and properly registering/unregistering the signal
-  // handler.
-  const int signum = SIGRTMIN;
-
-  struct sigaction sa{};
-  memset(&sa, 0, sizeof(sa));
-
-  // Check to make sure something else hasn't grabbed our signal.
-  if (sigaction(signum, nullptr, &sa) == -1) {
-    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
-    throw std::runtime_error(
-        std::string("Unable to check signal for watchdog: ") + err);
-  }
-
-  if (sa.sa_handler != SIG_DFL) {
-    throw std::runtime_error(
-        "Not creating watchdog: signal handler already registered.");
-  }
-
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = HandleWatchdogSignal;
-  sigemptyset(&sa.sa_mask);
-  if (sigaction(signum, &sa, nullptr) == -1) {
-    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
-    throw std::runtime_error(
-        std::string("Unable to register watchdog handler: ") + err);
-  }
-
-  struct sigevent sev{};
-  memset(&sev, 0, sizeof(sev));
-  sev.sigev_notify = SIGEV_SIGNAL;
-  sev.sigev_signo = signum;
-
-  timer_t timer_id{};
-  if (timer_create(CLOCK_MONOTONIC, &sev, &timer_id) == -1) {
-    char* err = strerror_r(errno, err_buf, sizeof(err_buf));
-    throw std::runtime_error(
-        std::string("Unable to create watchdog timer: ") + err);
-  }
-
-  return timer_id;
-}
-
-int64_t GetTime() {
-  struct timeval tv;
-  gettimeofday(&tv, nullptr);
-  return tv.tv_sec * 1000000L + tv.tv_usec;
-}
-
-// The Kinova SDK communicates joint positions in degrees, which would
-// be unusual in drake.  Convert to/from radians appropriately.
-double to_degrees(double radians) { return radians * (180.0 / M_PI); }
-double to_radians(double degrees) { return degrees * (M_PI / 180.0); }
-
 class KinovaDriver {
  public:
   KinovaDriver()
@@ -177,14 +111,13 @@ class KinovaDriver {
     lcm::Subscription* sub = nullptr;
 
     if (FLAGS_torque_only) {
-      lcm_.subscribe(FLAGS_lcm_torque_command_channel,
-                     &KinovaDriver::HandleTorqueCommandMessage,
-                     this);
-      SdkSetTorqueSafetyFactor(0.9);
+      sub = lcm_.subscribe(FLAGS_lcm_torque_command_channel,
+                           &KinovaDriver::HandleTorqueCommandMessage,
+                           this);
     } else {
-      lcm_.subscribe(FLAGS_lcm_command_channel,
-                     &KinovaDriver::HandleCommandMessage,
-                     this);
+      sub = lcm_.subscribe(FLAGS_lcm_command_channel,
+                           &KinovaDriver::HandleCommandMessage,
+                           this);
    }
     sub->setQueueCapacity(2);
 
@@ -247,6 +180,13 @@ class KinovaDriver {
     std::cerr << "Initializing torque control mode.\n";
 
     SdkSetTorqueControlType(DIRECTTORQUE);
+    SdkSetTorqueSafetyFactor(0.9);
+    SdkSetTorqueInactivityType(0);
+    float threshold[COMMAND_SIZE];
+    for (int i = 0; i < COMMAND_SIZE; ++i) {
+      threshold[i] = 6;
+    }
+    SdkSetSwitchThreshold(threshold);
     SdkSwitchTrajectoryTorque(TORQUE);
     int mode = 0;
     while (mode != 1) {
@@ -526,48 +466,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (!FLAGS_optimal_z.empty()) {
-    std::ifstream z_file(FLAGS_optimal_z);
-    if (!z_file.is_open()) {
-      std::cerr << "Unable to open: " << FLAGS_optimal_z << "\n";
-      return 1;
-    }
-    float optimal_z[GRAVITY_PARAM_SIZE];
-    memset(optimal_z, 0, sizeof(optimal_z));
-
-    std::cout << "optimal z: ";
-    for (int i = 0; i < OPTIMAL_Z_PARAM_SIZE_7DOF; ++i) {
-      std::string line;
-      if (!std::getline(z_file, line)) {
-        std::cerr << "Failed reading z parameters\n";
-        return 1;
-      }
-      optimal_z[i] = std::atof(line.c_str());
-      std::cout << optimal_z[i] << " ";
-    }
-    std::cout <<  "\n";
-
-    // I'm not sure what to make of the arm returning JACO_NACK_NORMAL, but
-    // the parameters still seem to improve gravity estimation even when we
-    // get that result code.
-    int result = SdkSetGravityOptimalZParam(optimal_z);
-    if (result != NO_ERROR_KINOVA && result != JACO_NACK_NORMAL) {
-      std::cerr << "Failed to set optimal z parameters: " << result << "\n";
-      //return 1;
-    }
-
-    result = SdkSetGravityType(OPTIMAL);
-    if (result != NO_ERROR_KINOVA) {
-      std::cerr << "Failed to set gravity type: " << result << "\n";
-      return 1;
-    }
-    std::cout << "Set optimal Z parameters.\n";
-  } else {
-    int result = SdkSetGravityType(MANUAL_INPUT);
-    if (result != NO_ERROR_KINOVA) {
-      std::cerr << "Failed to set gravity type: " << result << "\n";
-      return 1;
-    }
+  if (SetGravity(FLAGS_optimal_z) != 0) {
+    return 1;
   }
 
   KinovaDriver().Run();
