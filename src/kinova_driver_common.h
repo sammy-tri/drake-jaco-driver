@@ -40,6 +40,7 @@
 #define SdkSetAngularControl(x) Ethernet_SetAngularControl(x);
 #define SdkGetSensorsInfo(x) Ethernet_GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) Ethernet_GetGeneralInformations(x);
+#define SdkSetActuatorPID(a, p, i, d) Ethernet_SetActuatorPID(a, p, i, d);
 
 #else
 
@@ -59,6 +60,7 @@
 #define SdkSetAngularControl(x) SetAngularControl(x);
 #define SdkGetSensorsInfo(x) GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) GetGeneralInformations(x);
+#define SdkSetActuatorPID(a, p, i, d) SetActuatorPID(a, p, i, d);
 
 #endif  // USE_ETHERNET
 
