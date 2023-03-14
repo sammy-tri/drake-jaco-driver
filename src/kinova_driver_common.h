@@ -42,6 +42,7 @@
 #define SdkGetGeneralInformations(x) Ethernet_GetGeneralInformations(x);
 #define SdkSetTorqueZero(x) Ethernet_SetTorqueZero(x);
 #define SdkRunGravityZEstimationSequence7DOF(x, y) Ethernet_RunGravityZEstimationSequence7DOF(x, y);
+#define SdkSetActuatorPID(a, p, i, d) Ethernet_SetActuatorPID(a, p, i, d);
 
 #else
 
@@ -63,6 +64,7 @@
 #define SdkGetGeneralInformations(x) GetGeneralInformations(x);
 #define SdkSetTorqueZero(x) SetTorqueZero(x);
 #define SdkRunGravityZEstimationSequence7DOF(x, y) RunGravityZEstimationSequence7DOF(x, y);
+#define SdkSetActuatorPID(a, p, i, d) SetActuatorPID(a, p, i, d);
 
 #endif  // USE_ETHERNET
 
