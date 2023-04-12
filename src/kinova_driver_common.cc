@@ -14,6 +14,16 @@
 
 DEFINE_string(serial, "",
               "Serial number of robot to control.");
+DEFINE_string(actuator_pid_0, "",
+              "If specified, set the PID parameters for the first actuator to "
+              "the 3 comma delimited values specified here.  See other "
+              "flags for other actuators.");
+DEFINE_string(actuator_pid_1, "", "");
+DEFINE_string(actuator_pid_2, "", "");
+DEFINE_string(actuator_pid_3, "", "");
+DEFINE_string(actuator_pid_4, "", "");
+DEFINE_string(actuator_pid_5, "", "");
+DEFINE_string(actuator_pid_6, "", "");
 
 #ifdef USE_ETHERNET
 DEFINE_string(local_ip_addr, "",
@@ -161,6 +171,55 @@ int InitializeApi() {
 
   SdkSetAngularControl();
 
+  if (!FLAGS_actuator_pid_0.empty()) {
+    result = SetActuatorPidFromString(16, FLAGS_actuator_pid_0);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_1.empty()) {
+    result = SetActuatorPidFromString(17, FLAGS_actuator_pid_1);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_2.empty()) {
+    result = SetActuatorPidFromString(18, FLAGS_actuator_pid_2);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_3.empty()) {
+    result = SetActuatorPidFromString(19, FLAGS_actuator_pid_3);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_4.empty()) {
+    result = SetActuatorPidFromString(20, FLAGS_actuator_pid_4);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_5.empty()) {
+    result = SetActuatorPidFromString(21, FLAGS_actuator_pid_5);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
+  if (!FLAGS_actuator_pid_6.empty()) {
+    result = SetActuatorPidFromString(25, FLAGS_actuator_pid_6);
+    if (result != NO_ERROR_KINOVA) {
+      return result;
+    }
+  }
+
   return NO_ERROR_KINOVA;
 }
 
@@ -269,3 +328,32 @@ int64_t GetTime() {
 // be unusual in drake.  Convert to/from radians appropriately.
 double to_degrees(double radians) { return radians * (180.0 / M_PI); }
 double to_radians(double degrees) { return degrees * (M_PI / 180.0); }
+
+int SetActuatorPidFromString(int address, const std::string& pid_string) {
+  size_t start = 0;
+  size_t next_comma = pid_string.find(",");
+  if (next_comma == std::string::npos) {
+    throw std::runtime_error(
+        std::string("Expected 3 values, got: ") + pid_string);
+  }
+
+  const float p = stof(pid_string.substr(start, next_comma - start));
+  start = next_comma + 1;
+
+  next_comma = pid_string.find(",", start);
+  if (next_comma == std::string::npos) {
+    throw std::runtime_error(
+        std::string("Expected 3 values, got: ") + pid_string);
+  }
+  const float i = stof(pid_string.substr(start, next_comma - start));
+  start = next_comma + 1;
+
+  const float d = stof(pid_string.substr(start, std::string::npos));
+
+  const int result = SdkSetActuatorPID(address, p, i, d);
+  if (result != NO_ERROR_KINOVA) {
+    std::cerr << "Setting PID faied on address " << address << "\n";
+    return result;
+  }
+  return NO_ERROR_KINOVA;
+}

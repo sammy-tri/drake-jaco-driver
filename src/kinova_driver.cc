@@ -40,16 +40,6 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
-DEFINE_string(actuator_pid_0, "",
-              "If specified, set the PID parameters for the first actuator to "
-              "the 3 comma delimited values specified here.  See other "
-              "flags for other actuators.");
-DEFINE_string(actuator_pid_1, "", "");
-DEFINE_string(actuator_pid_2, "", "");
-DEFINE_string(actuator_pid_3, "", "");
-DEFINE_string(actuator_pid_4, "", "");
-DEFINE_string(actuator_pid_5, "", "");
-DEFINE_string(actuator_pid_6, "", "");
 
 namespace {
 
@@ -332,35 +322,6 @@ class KinovaDriver {
   struct itimerspec timer_value_{};
 };
 
-int SetActuatorPidFromString(int address, const std::string& pid_string) {
-  size_t start = 0;
-  size_t next_comma = pid_string.find(",");
-  if (next_comma == std::string::npos) {
-    throw std::runtime_error(
-        std::string("Expected 3 values, got: ") + pid_string);
-  }
-
-  const float p = stof(pid_string.substr(start, next_comma - start));
-  start = next_comma + 1;
-
-  next_comma = pid_string.find(",", start);
-  if (next_comma == std::string::npos) {
-    throw std::runtime_error(
-        std::string("Expected 3 values, got: ") + pid_string);
-  }
-  const float i = stof(pid_string.substr(start, next_comma - start));
-  start = next_comma + 1;
-
-  const float d = stof(pid_string.substr(start, std::string::npos));
-
-  const int result = SdkSetActuatorPID(address, p, i, d);
-  if (result != NO_ERROR_KINOVA) {
-    std::cerr << "Setting PID faied on address " << address << "\n";
-    return 1;
-  }
-  return 0;
-}
-
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -372,48 +333,6 @@ int main(int argc, char** argv) {
 
   if (SetGravity(FLAGS_optimal_z) != 0) {
     return 1;
-  }
-
-  if (!FLAGS_actuator_pid_0.empty()) {
-    if (SetActuatorPidFromString(16, FLAGS_actuator_pid_0)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_1.empty()) {
-    if (SetActuatorPidFromString(17, FLAGS_actuator_pid_1)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_2.empty()) {
-    if (SetActuatorPidFromString(18, FLAGS_actuator_pid_2)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_3.empty()) {
-    if (SetActuatorPidFromString(19, FLAGS_actuator_pid_3)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_4.empty()) {
-    if (SetActuatorPidFromString(20, FLAGS_actuator_pid_4)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_5.empty()) {
-    if (SetActuatorPidFromString(21, FLAGS_actuator_pid_5)) {
-      return 1;
-    }
-  }
-
-  if (!FLAGS_actuator_pid_6.empty()) {
-    if (SetActuatorPidFromString(25, FLAGS_actuator_pid_6)) {
-      return 1;
-    }
   }
 
   KinovaDriver().Run();

@@ -92,3 +92,5 @@ int64_t GetTime();
 // be unusual in drake.  Convert to/from radians appropriately.
 double to_degrees(double radians);
 double to_radians(double degrees);
+
+int SetActuatorPidFromString(int address, const std::string& pid_string);
