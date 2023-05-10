@@ -93,4 +93,16 @@ int64_t GetTime();
 double to_degrees(double radians);
 double to_radians(double degrees);
 
+
 int SetActuatorPidFromString(int address, const std::string& pid_string);
+
+// Remember any configured PID values.
+struct PidConfiguration {
+  float p;
+  float i;
+  float d;
+};
+
+// Returns previous configured PID values for an actuator address, or nullptr
+// if that address has not been configured.
+const PidConfiguration* GetConfiguredPid(int address);

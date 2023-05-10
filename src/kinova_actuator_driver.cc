@@ -31,7 +31,6 @@ constexpr double kMinSendReceiveIntervalSeconds =
 const char* kLcmCommandChannel = "KINOVA_JACO_COMMAND";
 const char* kLcmStatusChannel = "KINOVA_JACO_STATUS";
 const char* kLcmExtendedStatusChannel = "KINOVA_JACO_EXTENDED_STATUS";
-const double kMaxTimestampOffset = 0.1;  // Arbitrary, may need tuning.
 }  // namespace
 
 DEFINE_string(lcm_command_channel, kLcmCommandChannel,
@@ -47,10 +46,6 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
-DEFINE_double(max_timestamp_offset, kMaxTimestampOffset,
-              "Maximum difference in the utime field for incoming command "
-              "messages (compared to the most recent status message) "
-              "to be considered valid (in seconds).");
 
 namespace {
 
@@ -126,7 +121,7 @@ class KinovaDriver {
 
   void Run() {
     InitializeStatus();
-    
+
     int64_t time_for_next_step = GetTime();
     while (true) {
       Pet();
@@ -178,6 +173,21 @@ class KinovaDriver {
     return true;
   }
 
+  int SendAndWaitForResponse() {
+    constexpr int kResponseWaitTimeInMicroseconds = 50000;
+    int received = 0;
+    int sent = 0;
+    int result = SdkOpenRS485_Write(pkg_out_, 1, sent);
+    if (result != NO_ERROR_KINOVA) {
+      throw std::runtime_error(
+          "Error sending command during initialization.");
+    }
+
+    usleep(kResponseWaitTimeInMicroseconds);
+    result = SdkOpenRS485_Read(pkg_in_, 1, received);
+    return received;
+}
+
   void InitializeStatus() {
     std::cerr << "Starting initialization\n";
 
@@ -200,24 +210,16 @@ class KinovaDriver {
     // Get initial positions first.
     // We need to give this multiple attempts to allow for RS-485 errors.
     constexpr int kNumTrials = 50;
-    constexpr int kResponseWaitTimeInMicroseconds = 50000;
 
     for (int i = 0; i < kMaxNumJoints; ++i) {
       int received = 0;
+      const int joint_address = joint_to_address(i);
       for (int j = 0; j < kNumTrials; ++j) {
         pkg_out_[0].Command = RS485_MSG_GET_ACTUALPOSITION;
         pkg_out_[0].SourceAddress = 0;
-        pkg_out_[0].DestinationAddress = joint_to_address(i);
+        pkg_out_[0].DestinationAddress = joint_address;
 
-        int sent = 0;
-        result = SdkOpenRS485_Write(pkg_out_, 1, sent);
-        if (result != NO_ERROR_KINOVA) {
-          throw std::runtime_error(
-              "Error sending command during initialization.");
-        }
-
-        usleep(kResponseWaitTimeInMicroseconds);
-        result = SdkOpenRS485_Read(pkg_in_, 1, received);
+        received = SendAndWaitForResponse();
         if (received > 0) {
           break;
         }
@@ -238,6 +240,49 @@ class KinovaDriver {
       }
       ParseActualPosition(pkg_in_[0], i);
       commanded_position_[i] = lcm_status_.joint_position[i];
+
+      const PidConfiguration* pid_config = GetConfiguredPid(joint_address);
+      if (pid_config != nullptr) {
+        for (int j = 0; j < kNumTrials; ++j) {
+          pkg_out_[0].Command = RS485_MSG_KP_GAIN;
+          pkg_out_[0].SourceAddress = 0;
+          pkg_out_[0].DestinationAddress = joint_address;
+          pkg_out_[0].DataFloat[0] = pid_config->p;
+          pkg_out_[0].DataFloat[1] = pid_config->p;
+
+          received = SendAndWaitForResponse();
+          if (received > 0) {
+            break;
+          }
+        }
+
+        if (received != 1) {
+          std::cerr << "Unable to set P configuration of joint " << i
+                    << ": " << received << " messages received (expected 1)"
+                    << std::endl;
+          throw std::runtime_error("Error setting P configuration");
+        }
+
+        for (int j = 0; j < kNumTrials; ++j) {
+          pkg_out_[0].Command = RS485_MSG_KI_KD_GAIN;
+          pkg_out_[0].SourceAddress = 0;
+          pkg_out_[0].DestinationAddress = joint_address;
+          pkg_out_[0].DataFloat[0] = pid_config->d;
+          pkg_out_[0].DataFloat[1] = pid_config->i;
+
+          received = SendAndWaitForResponse();
+          if (received > 0) {
+            break;
+          }
+        }
+
+        if (received != 1) {
+          std::cerr << "Unable to set I,D configuration of joint " << i
+                    << ": " << received << " messages received (expected 1)"
+                    << std::endl;
+          throw std::runtime_error("Error setting I,D configuration");
+        }
+      }
     }
 
     std::cerr << "Initialization complete.\n";
@@ -245,10 +290,12 @@ class KinovaDriver {
 
   bool ParseSendAll1(const RS485_Message &msg, int joint_index) {
     //constexpr int kDataIndexCmdPosition = 0;   // Index of commanded position.
+    constexpr int kDataIndexCurrent = 0;       // Index of sensed current.
     constexpr int kDataIndexHallPosition = 1;  // Index of hall sensor position.
     constexpr int kDataIndexSpeed = 2;         // Index of sensed speed.
     constexpr int kDataIndexTorque = 3;        // Index of sensed torque.
 
+    lcm_status_.joint_current[joint_index] = msg.DataFloat[kDataIndexCurrent];
     lcm_status_.joint_position[joint_index] =
         to_radians(msg.DataFloat[kDataIndexHallPosition]);
     lcm_status_.joint_velocity[joint_index] =
@@ -256,10 +303,25 @@ class KinovaDriver {
     lcm_status_.joint_torque[joint_index] = msg.DataFloat[kDataIndexTorque];
     return true;
   }
+
   bool ParseSendAll2(const RS485_Message &msg, int joint_index) {
+    //constexpr int kDataIndexCmdPosition = 0;   // Index of commanded position.
+    lcm_extended_status_.actuator_temperature[joint_index] =
+        static_cast<float>((msg.DataLong[3] & 0xffff0000) >> 16) / 100.;
+
     return true;
   }
+
   bool ParseSendAll3(const RS485_Message &msg, int joint_index) {
+    if (joint_index == 1) {
+      std::cerr << "SendAll3 "
+                << msg.DataFloat[0] << " "
+                << msg.DataFloat[1] << " "
+                << msg.DataFloat[2] << " "
+                << msg.DataFloat[3] << "\n";
+    }
+
+    lcm_status_.joint_current[joint_index] = msg.DataFloat[0];
     return true;
   }
 
@@ -300,7 +362,8 @@ class KinovaDriver {
       // case RS485_MSG_REPORT_ERROR:
       //   return ParseReportError(msg, joint_index);
       default:
-        std::cerr << "Invalid/Unsupported command code:" << msg.Command
+        std::cerr << "Invalid/Unsupported command code:"
+                  << std::hex << msg.Command << std::dec
                   << std::endl;
         return false;
     }
@@ -337,29 +400,13 @@ class KinovaDriver {
         }
       }
     }
+    constexpr int kYieldTimeInMicroseconds = 300;
+    usleep(kYieldTimeInMicroseconds);
   }
 
   void HandleCommandMessage(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const drake::lcmt_jaco_command* command) {
-
-    if (std::abs(command->utime - lcm_status_.utime) >
-        FLAGS_max_timestamp_offset * 1e6) {
-      if (command_time_valid_) {
-        std::cerr << "Command received with invalid timestamp "
-                  << "(status " << lcm_status_.utime
-                  << " command " << command->utime
-                  << "), pausing motion.\n";
-      }
-      command_time_valid_ = false;
-      return;
-    } else {
-      if (!command_time_valid_) {
-        std::cerr << "Valid command received, starting motion\n";
-      }
-      command_time_valid_ = true;
-    }
-
     for (int i = 0; i < command->num_joints; ++i) {
       commanded_position_[i] = command->joint_position[i];
     }

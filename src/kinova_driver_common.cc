@@ -9,6 +9,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
 
 #include <gflags/gflags.h>
 
@@ -59,6 +60,8 @@ void HandleWatchdogSignal(int signal) noexcept {
   std::cerr << "Lost communication with robot.  Exiting.";
   abort();
 }
+
+std::map <int, PidConfiguration> saved_pid_configs;
 
 }  // namespace
 
@@ -350,10 +353,20 @@ int SetActuatorPidFromString(int address, const std::string& pid_string) {
 
   const float d = stof(pid_string.substr(start, std::string::npos));
 
+  saved_pid_configs[address] = {p, i, d};
+
   const int result = SdkSetActuatorPID(address, p, i, d);
   if (result != NO_ERROR_KINOVA) {
     std::cerr << "Setting PID faied on address " << address << "\n";
     return result;
   }
   return NO_ERROR_KINOVA;
+}
+
+const PidConfiguration* GetConfiguredPid(int address) {
+  if (saved_pid_configs.count(address) == 0) {
+    return nullptr;
+  }
+
+  return &saved_pid_configs.at(address);
 }
