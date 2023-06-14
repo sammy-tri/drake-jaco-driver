@@ -33,6 +33,7 @@ cc_binary(
         ":kinova_driver_common",
         "//lcmtypes:lcmtypes_drake_jaco_driver_cc",
         "@drake//lcmtypes:jaco",
+        "@drake//lcmtypes:panda",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
         "@lcm",
@@ -50,6 +51,7 @@ cc_binary(
         ":kinova_driver_common_ethernet",
         "//lcmtypes:lcmtypes_drake_jaco_driver_cc",
         "@drake//lcmtypes:jaco",
+        "@drake//lcmtypes:panda",
         "@gflags//:gflags",
         "@jaco_sdk//:ethernet_command_layer",
         "@lcm",
@@ -66,4 +68,5 @@ cc_binary(
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
     ],
+
 )

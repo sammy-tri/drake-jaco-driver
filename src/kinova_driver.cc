@@ -8,6 +8,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 #include <gflags/gflags.h>
@@ -15,6 +16,8 @@
 
 #include "drake/lcmt_jaco_command.hpp"
 #include "drake/lcmt_jaco_status.hpp"
+#include "drake/lcmt_panda_command.hpp"
+#include "drake/lcmt_panda_status.hpp"
 #include "drake_jaco_driver/lcmt_jaco_extended_status.hpp"
 
 #include "kinova_driver_common.h"
@@ -25,11 +28,14 @@ namespace {
 // https://github.com/Kinovarobotics/kinova-ros#velocity-control-joint-space-and-cartesian-space
 const int kKinovaUpdateIntervalUs = 10000;
 const char* kLcmCommandChannel = "KINOVA_JACO_COMMAND";
+const char* kLcmTorqueCommandChannel = "KINOVA_JACO_TORQUE_COMMAND";
 const char* kLcmStatusChannel = "KINOVA_JACO_STATUS";
 const char* kLcmExtendedStatusChannel = "KINOVA_JACO_EXTENDED_STATUS";
 }  // namespace
 
 DEFINE_string(lcm_command_channel, kLcmCommandChannel,
+              "Channel to receive LCM command messages on");
+DEFINE_string(lcm_torque_command_channel, kLcmTorqueCommandChannel,
               "Channel to receive LCM command messages on");
 DEFINE_string(lcm_status_channel, kLcmStatusChannel,
               "Channel to send LCM status messages on");
@@ -42,8 +48,26 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
+DEFINE_bool(torque_only, false, "Use torque control mode");
+DEFINE_double(
+    torque_only_kp_scale, 1.0,
+    "Scaling for position gains when inactive.");
+DEFINE_double(
+    torque_only_kd_scale, 1.0,
+    "Scaling for velocity gains when inactive.");
+DEFINE_double(
+    command_expire, 0.05,
+    "Time since last receipt of message to indicate expiration. This will "
+    "make the driver inhibit motion. At present, only used for "
+    "--torque_only=true.");
 
 namespace {
+
+constexpr int kMaxNumJoints = 7;
+const double kTorqueOnlyKp[kMaxNumJoints] = {
+  200, 200, 200, 100, 100, 100, 100};
+const double kTorqueOnlyKd[kMaxNumJoints] = {
+    5, 5, 5, 5, 3.5, 3.5, 3.5};
 
 void HandleWatchdogSignal(int signal) noexcept {
   std::cerr << "Lost communication with robot.  Exiting.";
@@ -150,10 +174,18 @@ class KinovaDriver {
     commanded_velocity_.Position.Type = ANGULAR_VELOCITY;
     commanded_velocity_.Position.HandMode = VELOCITY_MODE;
 
-    lcm::Subscription* sub =
-        lcm_.subscribe(FLAGS_lcm_command_channel,
-                       &KinovaDriver::HandleCommandMessage,
-                       this);
+    lcm::Subscription* sub = nullptr;
+
+    if (FLAGS_torque_only) {
+      lcm_.subscribe(FLAGS_lcm_torque_command_channel,
+                     &KinovaDriver::HandleTorqueCommandMessage,
+                     this);
+      SdkSetTorqueSafetyFactor(0.9);
+    } else {
+      lcm_.subscribe(FLAGS_lcm_command_channel,
+                     &KinovaDriver::HandleCommandMessage,
+                     this);
+   }
     sub->setQueueCapacity(2);
 
     // We're trying to determine that the robot went away entirely, not
@@ -169,6 +201,10 @@ class KinovaDriver {
   }
 
   void Run() {
+    if (FLAGS_torque_only) {
+      InitializeTorqueControl();
+    }
+
     // Reading the USB values actually takes a while, so keep track of
     // how long until we want to publish again.
     int64_t time_for_next_step = GetTime();
@@ -176,6 +212,7 @@ class KinovaDriver {
       Pet();
 
       time_for_next_step += kKinovaUpdateIntervalUs;
+
       PublishStatus();
 
       int64_t remaining_time = time_for_next_step - GetTime();
@@ -188,6 +225,10 @@ class KinovaDriver {
         lcm_.handleTimeout(remaining_time / 1000);
         remaining_time = time_for_next_step - GetTime();
       } while (remaining_time > 0);
+
+      if (FLAGS_torque_only) {
+        CommandTorques();
+      }
     }
   }
 
@@ -200,6 +241,89 @@ class KinovaDriver {
       throw std::runtime_error(
           std::string("Unable to start watchdog timer: ") + err);
     }
+  }
+
+  void InitializeTorqueControl() {
+    std::cerr << "Initializing torque control mode.\n";
+
+    SdkSetTorqueControlType(DIRECTTORQUE);
+    SdkSwitchTrajectoryTorque(TORQUE);
+    int mode = 0;
+    while (mode != 1) {
+      SdkGetTrajectoryTorqueMode(mode);
+    }
+    std::cerr << "Entered torque control mode.\n";
+
+    // When we enter torque control mode, we need to be mirroring the robot's
+    // current behavior.
+    AngularPosition current_torque;
+    SdkGetAngularForceGravityFree(current_torque);
+    torque_command_[0] = current_torque.Actuators.Actuator1;
+    torque_command_[1] = current_torque.Actuators.Actuator2;
+    torque_command_[2] = current_torque.Actuators.Actuator3;
+    torque_command_[3] = current_torque.Actuators.Actuator4;
+    torque_command_[4] = current_torque.Actuators.Actuator5;
+    torque_command_[5] = current_torque.Actuators.Actuator6;
+    torque_command_[6] = current_torque.Actuators.Actuator7;
+    last_torque_command_time_ = GetTime();
+    torque_command_valid_ = true;
+  }
+
+  // TODO(sam-creasey) Handle fingers in torque mode.
+  void HandleTorqueCommandMessage(const lcm::ReceiveBuffer* rbuf,
+                                  const std::string& chan,
+                                  const drake::lcmt_panda_command* command) {
+    if (command->control_mode_expected !=
+        drake::lcmt_panda_status::CONTROL_MODE_TORQUE) {
+      throw std::runtime_error("Command received for non-torque mode.");
+    }
+
+    assert(command->num_joint_torque == 7);
+    for (int i = 0; i < command->num_joint_torque; ++i) {
+      torque_command_[i] = command->joint_torque[i];
+    }
+    last_torque_command_time_ = GetTime();
+    torque_command_valid_ = true;
+  }
+
+  void CommandTorques() {
+    int mode = -1;
+    SdkGetTrajectoryTorqueMode(mode);
+    if (mode != 1) {
+      throw std::runtime_error("Torque control mode lost.");
+    }
+
+    if ((GetTime() - last_torque_command_time_) >
+        FLAGS_command_expire * 1e6) {
+
+      // If were coming out of a valid command state (or initializing), hold
+      // at this position.
+      if (torque_command_valid_ || hold_joint_position_.empty()) {
+        hold_joint_position_ = lcm_status_.joint_position;
+      }
+
+      torque_command_valid_ = false;
+      if (!torque_command_warned_) {
+        torque_command_warned_ = true;
+        std::cerr
+            << "Torque command expiration! Engaging holding controller."
+            << std::endl;
+      }
+    }
+
+    if (!torque_command_valid_) {
+      const double* pos_measured = lcm_status_.joint_position.data();
+      const double* pos_desired = hold_joint_position_.data();
+      const double* vel_estimated = lcm_status_.joint_velocity.data();
+      for (int i = 0; i < lcm_status_.num_joints; ++i) {
+        const double kp_i = kTorqueOnlyKp[i] * FLAGS_torque_only_kp_scale;
+        const double kd_i = kTorqueOnlyKd[i] * FLAGS_torque_only_kd_scale;
+        const double pos_error_i = pos_measured[i] - pos_desired[i];
+        const double vel_error_i = vel_estimated[i];
+        torque_command_[i] = -kp_i * pos_error_i - kd_i * vel_error_i;
+      }
+    }
+    SdkSendAngularTorqueCommand(torque_command_);
   }
 
   void HandleCommandMessage(const lcm::ReceiveBuffer* rbuf,
@@ -386,6 +510,11 @@ class KinovaDriver {
   int64_t msgs_sent_{0};
   timer_t timer_id_{};
   struct itimerspec timer_value_{};
+  int64_t last_torque_command_time_{0};
+  bool torque_command_valid_{false};
+  bool torque_command_warned_{true};
+  float torque_command_[COMMAND_SIZE];
+  std::vector<double> hold_joint_position_;
 };
 
 }  // namespace

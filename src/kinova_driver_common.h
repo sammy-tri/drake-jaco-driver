@@ -40,6 +40,11 @@
 #define SdkSetAngularControl(x) Ethernet_SetAngularControl(x);
 #define SdkGetSensorsInfo(x) Ethernet_GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) Ethernet_GetGeneralInformations(x);
+#define SdkSetTorqueSafetyFactor(x) Ethernet_SetTorqueSafetyFactor(x);
+#define SdkSetTorqueControlType(x) Ethernet_SetTorqueControlType(x)
+#define SdkSwitchTrajectoryTorque(x) Ethernet_SwitchTrajectoryTorque(x);
+#define SdkGetTrajectoryTorqueMode(x) Ethernet_GetTrajectoryTorqueMode(x);
+#define SdkSendAngularTorqueCommand(x) Ethernet_SendAngularTorqueCommand(x);
 
 #else
 
@@ -59,6 +64,11 @@
 #define SdkSetAngularControl(x) SetAngularControl(x);
 #define SdkGetSensorsInfo(x) GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) GetGeneralInformations(x);
+#define SdkSetTorqueSafetyFactor(x) SetTorqueSafetyFactor(x);
+#define SdkSetTorqueControlType(x) SetTorqueControlType(x)
+#define SdkSwitchTrajectoryTorque(x) SwitchTrajectoryTorque(x);
+#define SdkGetTrajectoryTorqueMode(x) GetTrajectoryTorqueMode(x);
+#define SdkSendAngularTorqueCommand(x) SendAngularTorqueCommand(x);
 
 #endif  // USE_ETHERNET
 
