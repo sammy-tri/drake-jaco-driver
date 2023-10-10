@@ -73,6 +73,7 @@
 
 #endif  // USE_ETHERNET
 
+constexpr int kMaxNumJoints = 7;
 
 /// Initializes the Kinova API.  Returns NO_ERROR_KINOVA on success, or the
 /// Kinova error code on failure (if the failure was not directly due to the
@@ -106,3 +107,6 @@ struct PidConfiguration {
 // Returns previous configured PID values for an actuator address, or nullptr
 // if that address has not been configured.
 const PidConfiguration* GetConfiguredPid(int address);
+
+// Gets the offsets for each joint (measured_position - dessired_position)
+void GetJointOffsets(double* joint_offset);

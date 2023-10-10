@@ -55,7 +55,6 @@ DEFINE_double(actuator_buffer_range, kJointLimitSafetyMarginDegree,
 
 namespace {
 
-constexpr int kMaxNumJoints = 7;
 constexpr int kKinovaSDKPackageLength = 50;
 constexpr int kJointAddressOffset = 16;
 
@@ -123,6 +122,7 @@ class KinovaDriver {
     timer_value_.it_value.tv_nsec = timer_value_.it_interval.tv_nsec;
 
     timer_id_ = CreateWatchdog();
+    GetJointOffsets(joint_offset_);
   }
 
   void Run() {
@@ -171,7 +171,8 @@ class KinovaDriver {
     lcm_status_.joint_current[joint_index] =
         msg.DataFloat[kDataIndexMotorCurrent];
     lcm_status_.joint_position[joint_index] =
-        to_radians(msg.DataFloat[kDataIndexHallPosition]);
+        to_radians(msg.DataFloat[kDataIndexHallPosition])
+        - joint_offset_[joint_index];
     lcm_status_.joint_velocity[joint_index] =
         to_radians(msg.DataFloat[kDataIndexSpeed]);
     lcm_status_.joint_torque[joint_index] =
@@ -312,7 +313,8 @@ class KinovaDriver {
 
     lcm_status_.joint_current[joint_index] = msg.DataFloat[kDataIndexCurrent];
     lcm_status_.joint_position[joint_index] =
-        to_radians(msg.DataFloat[kDataIndexHallPosition]);
+        to_radians(msg.DataFloat[kDataIndexHallPosition]) -
+        joint_offset_[joint_index];
     lcm_status_.joint_velocity[joint_index] =
         to_radians(msg.DataFloat[kDataIndexSpeed]);
     lcm_status_.joint_torque[joint_index] = msg.DataFloat[kDataIndexTorque];
@@ -390,7 +392,8 @@ class KinovaDriver {
       pkg_out_[0].Command = RS485_MSG_GET_POSITION_COMMAND_ALL_VALUES;
       pkg_out_[0].SourceAddress = 0;
       pkg_out_[0].DestinationAddress = joint_to_address(i);
-      pkg_out_[0].DataFloat[0] = to_degrees(commanded_position_[i]);
+      pkg_out_[0].DataFloat[0] =
+          to_degrees(commanded_position_[i] + joint_offset_[i]);
       pkg_out_[0].DataFloat[1] = pkg_out_[0].DataFloat[0];
       pkg_out_[0].DataLong[2] = 0;  // Docs imply something should go here!?
 
@@ -453,6 +456,7 @@ class KinovaDriver {
   int64_t msgs_sent_{0};
   timer_t timer_id_{};
   struct itimerspec timer_value_{};
+  double joint_offset_[kMaxNumJoints];
   bool command_time_valid_{false};
   std::vector<double> hold_joint_position_;
 };

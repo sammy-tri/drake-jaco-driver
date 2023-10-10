@@ -26,6 +26,14 @@ DEFINE_string(actuator_pid_4, "", "");
 DEFINE_string(actuator_pid_5, "", "");
 DEFINE_string(actuator_pid_6, "", "");
 
+DEFINE_double(offset_0, 0, "Joint 0 offset");
+DEFINE_double(offset_1, 0, "Joint 1 offset");
+DEFINE_double(offset_2, 0, "Joint 2 offset");
+DEFINE_double(offset_3, 0, "Joint 3 offset");
+DEFINE_double(offset_4, 0, "Joint 4 offset");
+DEFINE_double(offset_5, 0, "Joint 5 offset");
+DEFINE_double(offset_6, 0, "Joint 6 offset");
+
 #ifdef USE_ETHERNET
 DEFINE_string(local_ip_addr, "",
               "Local IP address for ethernet communication.");
@@ -369,4 +377,14 @@ const PidConfiguration* GetConfiguredPid(int address) {
   }
 
   return &saved_pid_configs.at(address);
+}
+
+void GetJointOffsets(double* joint_offset) {
+  joint_offset[0] = FLAGS_offset_0;
+  joint_offset[1] = FLAGS_offset_1;
+  joint_offset[2] = FLAGS_offset_2;
+  joint_offset[3] = FLAGS_offset_3;
+  joint_offset[4] = FLAGS_offset_4;
+  joint_offset[5] = FLAGS_offset_5;
+  joint_offset[6] = FLAGS_offset_6;
 }

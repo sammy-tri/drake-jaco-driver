@@ -25,6 +25,9 @@ int main(int argc, char** argv) {
   AngularPosition current_position;
   SdkGetAngularPosition(current_position);
 
+  double joint_offset[kMaxNumJoints];
+  GetJointOffsets(joint_offset);
+
   std::cout << "Moving to torque zero position.\n";
 
   TrajectoryPoint command;
@@ -34,12 +37,12 @@ int main(int argc, char** argv) {
   command.Position.Type = ANGULAR_POSITION;
   command.Position.HandMode = HAND_NOMOVEMENT;
   command.Position.Actuators.Actuator1 = current_position.Actuators.Actuator1;
-  command.Position.Actuators.Actuator2 = 180;
-  command.Position.Actuators.Actuator3 = 180;
-  command.Position.Actuators.Actuator4 = 180;
-  command.Position.Actuators.Actuator5 = 180;
-  command.Position.Actuators.Actuator6 = 180;
-  command.Position.Actuators.Actuator7 = 180;
+  command.Position.Actuators.Actuator2 = 180 + to_degrees(joint_offset[0]);
+  command.Position.Actuators.Actuator3 = 180 + to_degrees(joint_offset[1]);
+  command.Position.Actuators.Actuator4 = 180 + to_degrees(joint_offset[2]);
+  command.Position.Actuators.Actuator5 = 180 + to_degrees(joint_offset[3]);
+  command.Position.Actuators.Actuator6 = 180 + to_degrees(joint_offset[4]);
+  command.Position.Actuators.Actuator7 = 180 + to_degrees(joint_offset[5]);
 
   SdkSendBasicTrajectory(command);
 

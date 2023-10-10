@@ -100,6 +100,8 @@ class KinovaDriver {
     timer_value_.it_value.tv_nsec = timer_value_.it_interval.tv_nsec;
 
     timer_id_ = CreateWatchdog();
+
+    GetJointOffsets(joint_offset_);
   }
 
   void Run() {
@@ -175,19 +177,19 @@ class KinovaDriver {
     AngularPosition current_position;
     SdkGetAngularPosition(current_position);
     lcm_status_.joint_position[0] =
-        to_radians(current_position.Actuators.Actuator1);
+        to_radians(current_position.Actuators.Actuator1) - joint_offset_[0];
     lcm_status_.joint_position[1] =
-        to_radians(current_position.Actuators.Actuator2);
+        to_radians(current_position.Actuators.Actuator2) - joint_offset_[1];
     lcm_status_.joint_position[2] =
-        to_radians(current_position.Actuators.Actuator3);
+        to_radians(current_position.Actuators.Actuator3) - joint_offset_[2];
     lcm_status_.joint_position[3] =
-        to_radians(current_position.Actuators.Actuator4);
+        to_radians(current_position.Actuators.Actuator4) - joint_offset_[3];
     lcm_status_.joint_position[4] =
-        to_radians(current_position.Actuators.Actuator5);
+        to_radians(current_position.Actuators.Actuator5) - joint_offset_[4];
     lcm_status_.joint_position[5] =
-        to_radians(current_position.Actuators.Actuator6);
+        to_radians(current_position.Actuators.Actuator6) - joint_offset_[5];
     lcm_status_.joint_position[6] =
-        to_radians(current_position.Actuators.Actuator7);
+        to_radians(current_position.Actuators.Actuator7) - joint_offset_[6];
     if (lcm_status_.num_fingers) {
       lcm_status_.finger_position[0] =
           to_radians(current_position.Fingers.Finger1);
@@ -320,6 +322,7 @@ class KinovaDriver {
   int64_t msgs_sent_{0};
   timer_t timer_id_{};
   struct itimerspec timer_value_{};
+  double joint_offset_[kMaxNumJoints];
 };
 
 }  // namespace
