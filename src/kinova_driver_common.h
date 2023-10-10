@@ -40,6 +40,8 @@
 #define SdkSetAngularControl(x) Ethernet_SetAngularControl(x);
 #define SdkGetSensorsInfo(x) Ethernet_GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) Ethernet_GetGeneralInformations(x);
+#define SdkSetTorqueZero(x) Ethernet_SetTorqueZero(x);
+#define SdkRunGravityZEstimationSequence7DOF(x, y) Ethernet_RunGravityZEstimationSequence7DOF(x, y);
 
 #else
 
@@ -59,6 +61,8 @@
 #define SdkSetAngularControl(x) SetAngularControl(x);
 #define SdkGetSensorsInfo(x) GetSensorsInfo(x);
 #define SdkGetGeneralInformations(x) GetGeneralInformations(x);
+#define SdkSetTorqueZero(x) SetTorqueZero(x);
+#define SdkRunGravityZEstimationSequence7DOF(x, y) RunGravityZEstimationSequence7DOF(x, y);
 
 #endif  // USE_ETHERNET
 

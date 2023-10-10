@@ -67,3 +67,16 @@ cc_binary(
         "@jaco_sdk//:usb_command_layer",
     ],
 )
+
+cc_binary(
+    name = "kinova_calibration_ethernet",
+    srcs = [
+        "kinova_calibration.cc",
+    ],
+    copts = ["-DUSE_ETHERNET"],
+    deps = [
+        ":kinova_driver_common_ethernet",
+        "@gflags//:gflags",
+        "@jaco_sdk//:usb_command_layer",
+    ],
+)
