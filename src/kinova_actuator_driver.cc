@@ -31,6 +31,7 @@ constexpr double kMinSendReceiveIntervalSeconds =
 const char* kLcmCommandChannel = "KINOVA_JACO_COMMAND";
 const char* kLcmStatusChannel = "KINOVA_JACO_STATUS";
 const char* kLcmExtendedStatusChannel = "KINOVA_JACO_EXTENDED_STATUS";
+constexpr double kJointLimitSafetyMarginDegree = 1;
 }  // namespace
 
 DEFINE_string(lcm_command_channel, kLcmCommandChannel,
@@ -46,6 +47,11 @@ DEFINE_double(joint_command_factor, 1.,
               "A multiplier to apply to received joint velocity commands.");
 DEFINE_double(joint_status_factor, 1.,
               "A multiplier to apply to all reported joint velocities.");
+DEFINE_bool(limit_actuator_range, false,
+            "Limit actuator range to between zero and 360 degrees");
+DEFINE_double(actuator_buffer_range, kJointLimitSafetyMarginDegree,
+              "When limiting the actuator range, how much to reduce the "
+              "limits by (in degrees)");
 
 namespace {
 
@@ -241,6 +247,15 @@ class KinovaDriver {
       ParseActualPosition(pkg_in_[0], i);
       commanded_position_[i] = lcm_status_.joint_position[i];
 
+      if (FLAGS_limit_actuator_range) {
+        if ((commanded_position_[i] < 0) ||
+            (commanded_position_[i] > 2 * M_PI)) {
+          std::cerr << "Joint " << i << " out of range during initialization."
+                    << std::endl;
+          throw std::runtime_error("Joint out of range");
+        }
+      }
+
       const PidConfiguration* pid_config = GetConfiguredPid(joint_address);
       if (pid_config != nullptr) {
         for (int j = 0; j < kNumTrials; ++j) {
@@ -408,7 +423,14 @@ class KinovaDriver {
                             const std::string& chan,
                             const drake::lcmt_jaco_command* command) {
     for (int i = 0; i < command->num_joints; ++i) {
-      commanded_position_[i] = command->joint_position[i];
+      if (FLAGS_limit_actuator_range) {
+        const double joint_tol = to_radians(FLAGS_actuator_buffer_range);
+        commanded_position_[i] =
+            std::max(std::min(0 + joint_tol, command->joint_position[i]),
+                     2 * M_PI - joint_tol);
+      } else {
+        commanded_position_[i] = command->joint_position[i];
+      }
     }
   }
 
