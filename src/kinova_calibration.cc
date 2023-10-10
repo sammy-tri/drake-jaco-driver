@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   }
 
   AngularPosition current_position;
-  GetAngularPosition(current_position);
+  SdkGetAngularPosition(current_position);
 
   std::cout << "Moving to torque zero position.\n";
 
@@ -35,17 +35,17 @@ int main(int argc, char** argv) {
   command.Position.HandMode = HAND_NOMOVEMENT;
   command.Position.Actuators.Actuator1 = current_position.Actuators.Actuator1;
   command.Position.Actuators.Actuator2 = 180;
-  command.Position.Actuators.Actuator3 = 90;
+  command.Position.Actuators.Actuator3 = 180;
   command.Position.Actuators.Actuator4 = 180;
-  command.Position.Actuators.Actuator5 = 0;
+  command.Position.Actuators.Actuator5 = 180;
   command.Position.Actuators.Actuator6 = 180;
   command.Position.Actuators.Actuator7 = 180;
 
-  SendBasicTrajectory(command);
+  SdkSendBasicTrajectory(command);
 
   double norm = 0;
   do {
-    GetAngularPosition(current_position);
+    SdkGetAngularPosition(current_position);
     norm += std::abs(current_position.Actuators.Actuator1 -
                      command.Position.Actuators.Actuator1);
     norm += std::abs(current_position.Actuators.Actuator2 -
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
   std::cout << "Setting actuator torque zero.\n";
   for (int i = 0; i < 7; ++i) {
-    int result = SetTorqueZero(i + 16);
+    int result = SdkSetTorqueZero(i + 16);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Setting torque zero failed on actuator "
                 << i << ": " << result << "\n";
@@ -79,14 +79,14 @@ int main(int argc, char** argv) {
     float optimal_z[OPTIMAL_Z_PARAM_SIZE_7DOF];
     memset(optimal_z, 0, sizeof(optimal_z));
     int result =
-        RunGravityZEstimationSequence7DOF(SPHERICAL_7DOF_SERVICE, optimal_z);
+        SdkRunGravityZEstimationSequence7DOF(SPHERICAL_7DOF_SERVICE, optimal_z);
     if (result != NO_ERROR_KINOVA) {
       std::cerr << "Gravity estimation failed: " << result << std::endl;
       return 1;
     }
   }
 
-  CloseAPI();
+  SdkCloseAPI();
 
   return 0;
 }
