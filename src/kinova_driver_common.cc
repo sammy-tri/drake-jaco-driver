@@ -43,7 +43,15 @@ bool IsValidDevice(const KinovaDevice& device) {
 }
 }  // namespace
 
+int devicetype = 0;
+int GetSelectedDeviceType(void)
+{
+  return devicetype;
+}
+
 int InitializeApi() {
+  int selected_device_id = -1;
+
   if (signal(SIGINT, sighandler) == SIG_ERR) {
     perror("Unable to set signal handler");
   }
@@ -98,7 +106,7 @@ int InitializeApi() {
 
   const std::string serial = FLAGS_serial;
 
-  int selected_device_id = -1;
+
   for (int device_id = 0; device_id < device_count; ++device_id) {
     if (IsValidDevice(list[device_id])) {
       std::cerr << "Found robot " << device_id << " : "
@@ -125,11 +133,18 @@ int InitializeApi() {
     std::cerr << "Selecting robot " << selected_device_id << "\n";
   }
 
-  if (list[selected_device_id].DeviceType !=
-      eRobotType_Spherical_7DOF_Service) {
+  if (
+      ( list[selected_device_id].DeviceType != eRobotType_Spherical_7DOF_Service) &&
+      ( list[selected_device_id].DeviceType != eRobotType_Spherical_6DOF_Service)
+     )
+  {
     std::cerr << "Untested robot type: "
               << list[selected_device_id].DeviceType
               << std::endl;
+  }
+  else
+  {
+    devicetype =list[selected_device_id].DeviceType;
   }
 
   result = SdkSetActiveDevice(list[selected_device_id]);
@@ -150,7 +165,9 @@ int InitializeApi() {
     return result;
   }
 
+  std::cout << "setting angular control: " << result << std::endl;
   SdkSetAngularControl();
+  std::cout << "set angular control: " << result << std::endl;
 
   return NO_ERROR_KINOVA;
 }

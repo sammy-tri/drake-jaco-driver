@@ -108,14 +108,29 @@ int64_t GetTime() {
 // be unusual in drake.  Convert to/from radians appropriately.
 double to_degrees(double radians) { return radians * (180.0 / M_PI); }
 double to_radians(double degrees) { return degrees * (M_PI / 180.0); }
-
+int glbl_deviceid = 0;
 class KinovaDriver {
  public:
-  KinovaDriver()
+
+  int devicetype;
+
+  KinovaDriver(int devicetype_in)
       : lcm_(FLAGS_lcm_url) {
+
     // TODO(sam.creasey) figure out how to detect the correct number
-    // of joints/fingers.
-    lcm_status_.num_joints = 7;
+    glbl_deviceid=devicetype = devicetype_in;
+
+    if(KinovaDriver::devicetype ==eRobotType_Spherical_7DOF_Service )
+    {
+     std::cout<<"number of joints on robot are 7\n";
+     lcm_status_.num_joints = 7;
+    }
+    else
+    {
+     std::cout<<"number of joints on robot are 6\n";
+     lcm_status_.num_joints = 6;
+    }
+    std::cout<<"setting joints to zero\n";
     lcm_status_.joint_position.resize(lcm_status_.num_joints, 0);
     lcm_status_.joint_velocity.resize(lcm_status_.num_joints, 0);
     lcm_status_.joint_torque.resize(lcm_status_.num_joints, 0);
@@ -128,12 +143,18 @@ class KinovaDriver {
     // as "No init" if a gripper is attached or not.)
     lcm_status_.num_fingers = 3;
     if (lcm_status_.num_fingers) {
+      std::cout<<"setting fingertips to zero\n";
       lcm_status_.finger_position.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_velocity.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_torque.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_torque_external.resize(lcm_status_.num_fingers, 0);
       lcm_status_.finger_current.resize(lcm_status_.num_fingers, 0);
     }
+    else
+    {
+      std::cout<<"no finger tips\n";
+    }
+
 
     lcm_extended_status_.num_joints = lcm_status_.num_joints;
     lcm_extended_status_.actuator_temperature.resize(
@@ -150,6 +171,7 @@ class KinovaDriver {
     commanded_velocity_.Position.Type = ANGULAR_VELOCITY;
     commanded_velocity_.Position.HandMode = VELOCITY_MODE;
 
+    std::cout<<"subscribe to incomming messages\n";
     lcm::Subscription* sub =
         lcm_.subscribe(FLAGS_lcm_command_channel,
                        &KinovaDriver::HandleCommandMessage,
@@ -176,6 +198,7 @@ class KinovaDriver {
       Pet();
 
       time_for_next_step += kKinovaUpdateIntervalUs;
+      
       PublishStatus();
 
       int64_t remaining_time = time_for_next_step - GetTime();
@@ -207,8 +230,16 @@ class KinovaDriver {
                             const drake::lcmt_jaco_command* command) {
     // TODO(sam.creasey) figure out how to detect the correct number
     // of joints/fingers.
+    std::cout<<"enter HandleCommandMessage "<<command->joint_velocity[0] * FLAGS_joint_command_factor << "\n";
     if (command->num_joints > 0) {
-      assert(command->num_joints == 7);
+      if(glbl_deviceid == eRobotType_Spherical_7DOF_Service)
+      {
+        assert(command->num_joints == 7);
+      }
+      if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+      {
+        assert(command->num_joints == 6);
+      }
       AngularInfo* actuators = &commanded_velocity_.Position.Actuators;
       actuators->Actuator1 = to_degrees(
           command->joint_velocity[0] * FLAGS_joint_command_factor);
@@ -224,6 +255,11 @@ class KinovaDriver {
           command->joint_velocity[5] * FLAGS_joint_command_factor);
       actuators->Actuator7 = to_degrees(
           command->joint_velocity[6] * FLAGS_joint_command_factor);
+
+      if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+      {
+        actuators->Actuator7 = 0;
+      }
     }
 
     if (command->num_fingers > 0) {
@@ -233,11 +269,18 @@ class KinovaDriver {
       fingers->Finger2 = to_degrees(command->finger_velocity[1]);
       fingers->Finger3 = to_degrees(command->finger_velocity[2]);
     }
-
+    std::cout<<"act1:"<<command->joint_velocity[0]<<"\n";
+    std::cout<<"act2:"<<command->joint_velocity[1]<<"\n";
+    std::cout<<"act3:"<<command->joint_velocity[2]<<"\n";
+    std::cout<<"act4:"<<command->joint_velocity[3]<<"\n";
+    std::cout<<"act5:"<<command->joint_velocity[4]<<"\n";
+    std::cout<<"act6:"<<command->joint_velocity[5]<<"\n";
+    std::cout<<"act7:"<<command->joint_velocity[6]<<"\n";
     SdkSendBasicTrajectory(commanded_velocity_);
   }
 
   void PublishStatus() {
+
     AngularPosition current_position;
     SdkGetAngularPosition(current_position);
     lcm_status_.joint_position[0] =
@@ -252,8 +295,14 @@ class KinovaDriver {
         to_radians(current_position.Actuators.Actuator5);
     lcm_status_.joint_position[5] =
         to_radians(current_position.Actuators.Actuator6);
+
     lcm_status_.joint_position[6] =
         to_radians(current_position.Actuators.Actuator7);
+    if(KinovaDriver::devicetype == eRobotType_Spherical_6DOF_Service)
+    {
+    lcm_status_.joint_position[6] = 0;
+    }
+
     if (lcm_status_.num_fingers) {
       lcm_status_.finger_position[0] =
           to_radians(current_position.Fingers.Finger1);
@@ -279,6 +328,10 @@ class KinovaDriver {
         current_velocity.Actuators.Actuator6 * FLAGS_joint_status_factor);
     lcm_status_.joint_velocity[6] = to_radians(
         current_velocity.Actuators.Actuator7 * FLAGS_joint_status_factor);
+    if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+    {
+    lcm_status_.joint_velocity[6] = 0;
+    }
 
     if (lcm_status_.num_fingers) {
       lcm_status_.finger_velocity[0] =
@@ -298,6 +351,11 @@ class KinovaDriver {
     lcm_status_.joint_torque_external[4] = current_torque.Actuators.Actuator5;
     lcm_status_.joint_torque_external[5] = current_torque.Actuators.Actuator6;
     lcm_status_.joint_torque_external[6] = current_torque.Actuators.Actuator7;
+    if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+    {
+     lcm_status_.joint_torque_external[6] = 0;
+    }
+
     if (lcm_status_.num_fingers) {
       lcm_status_.finger_torque_external[0] = current_torque.Fingers.Finger1;
       lcm_status_.finger_torque_external[1] = current_torque.Fingers.Finger2;
@@ -315,6 +373,11 @@ class KinovaDriver {
       lcm_status_.joint_torque[4] = current_torque.Actuators.Actuator5;
       lcm_status_.joint_torque[5] = current_torque.Actuators.Actuator6;
       lcm_status_.joint_torque[6] = current_torque.Actuators.Actuator7;
+      if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+      {
+       lcm_status_.joint_torque[6] = 0;
+      }
+
       if (lcm_status_.num_fingers) {
         lcm_status_.finger_torque[0] = current_torque.Fingers.Finger1;
         lcm_status_.finger_torque[1] = current_torque.Fingers.Finger2;
@@ -332,6 +395,11 @@ class KinovaDriver {
       lcm_status_.joint_current[4] = current_current.Actuators.Actuator5;
       lcm_status_.joint_current[5] = current_current.Actuators.Actuator6;
       lcm_status_.joint_current[6] = current_current.Actuators.Actuator7;
+      if(glbl_deviceid == eRobotType_Spherical_6DOF_Service)
+      {
+       lcm_status_.joint_current[6] = 0;
+      }
+
       if (lcm_status_.num_fingers) {
         lcm_status_.finger_current[0] = current_current.Fingers.Finger1;
         lcm_status_.finger_current[1] = current_current.Fingers.Finger2;
@@ -377,6 +445,7 @@ class KinovaDriver {
     lcm_status_.utime = GetTime();
     lcm_.publish(FLAGS_lcm_status_channel, &lcm_status_);
     ++msgs_sent_;
+
   }
 
   lcm::LCM lcm_;
@@ -392,6 +461,9 @@ class KinovaDriver {
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  std::cout<<"*************************************\n";
+  std::cout<<"***** Welcome to kinova driver*******\n";
+  std::cout<<"*************************************\n";
 
   if (InitializeApi() != NO_ERROR_KINOVA) {
     return 1;
@@ -440,8 +512,11 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
-
-  KinovaDriver().Run();
+  std::cout << "launching the kinova run command\n";
+  int devicetype = 0;
+  devicetype = GetSelectedDeviceType();
+  KinovaDriver(devicetype).Run();
+  std::cout << "termination the kinova run command\n";
 
   return 0;
 }

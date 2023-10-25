@@ -1,3 +1,6 @@
+January 21 2021
+  Initial change notification to support arms that are supported by kinova robot arms
+
 # drake-jaco-driver
 
 This repository contains the application code used to communicate with
@@ -63,3 +66,14 @@ of the fully extended arm.  When the process completes, the Kinova API
 will write a file named `ParametersOptimal_Z.txt`.  When running the
 driver, this file can be passed as a command line argument to enable
 optimal gravity estimation mode: `./bazel-bin/src/kinova_driver --optimal_z ParametersOptimal_Z.txt`
+
+Example:
+ build code:
+bazel build //...
+start the system up:
+ bazel-bin/src/kinova_driver
+
+Clean the build  
+ bazel clean --expunge
+https://github.com/sammy-tri/drake-jaco-driver
+ 
