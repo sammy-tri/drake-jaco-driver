@@ -176,7 +176,7 @@ class KinovaDriver {
     lcm_status_.joint_velocity[joint_index] =
         to_radians(msg.DataFloat[kDataIndexSpeed]);
     lcm_status_.joint_torque[joint_index] =
-        msg.DataFloat[kDataIndexTorque];
+        -msg.DataFloat[kDataIndexTorque];
     return true;
   }
 
@@ -317,7 +317,7 @@ class KinovaDriver {
         joint_offset_[joint_index];
     lcm_status_.joint_velocity[joint_index] =
         to_radians(msg.DataFloat[kDataIndexSpeed]);
-    lcm_status_.joint_torque[joint_index] = msg.DataFloat[kDataIndexTorque];
+    lcm_status_.joint_torque[joint_index] = -msg.DataFloat[kDataIndexTorque];
     return true;
   }
 
