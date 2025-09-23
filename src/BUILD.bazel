@@ -32,7 +32,7 @@ cc_binary(
     deps = [
         ":kinova_driver_common",
         "//lcmtypes:lcmtypes_drake_jaco_driver_cc",
-        "@drake//lcmtypes:jaco",
+        "@drake//lcmtypes:lcmtypes_drake_cc",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
         "@lcm",
@@ -49,7 +49,7 @@ cc_binary(
     deps = [
         ":kinova_driver_common_ethernet",
         "//lcmtypes:lcmtypes_drake_jaco_driver_cc",
-        "@drake//lcmtypes:jaco",
+        "@drake//lcmtypes:lcmtypes_drake_cc",
         "@gflags//:gflags",
         "@jaco_sdk//:ethernet_command_layer",
         "@lcm",
