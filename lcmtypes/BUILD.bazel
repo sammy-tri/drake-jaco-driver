@@ -1,32 +1,50 @@
-# -*- python -*-
+load("@lcm//lcm-bazel:lcm_cc_library_srcs.bzl", "lcm_cc_library_srcs")
+load("@lcm//lcm-bazel:lcm_java_library_srcs.bzl", "lcm_java_library_srcs")
+load("@lcm//lcm-bazel:lcm_library.bzl", "lcm_library")
+load("@lcm//lcm-bazel:lcm_py_library_srcs.bzl", "lcm_py_library_srcs")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_java//java:java_library.bzl", "java_library")
 
 package(default_visibility = ["//visibility:public"])
 
-load(
-    "@drake//tools/workspace/lcm:lcm.bzl",
-    "lcm_cc_library",
-    "lcm_java_library",
-    "lcm_py_library",
-)
-
 LCM_SRCS = glob(["*.lcm"])
 
-lcm_cc_library(
+lcm_library(
+    name = "messages",
+    srcs = LCM_SRCS,
+    lcm_package = "drake_jaco_driver",
+)
+
+lcm_cc_library_srcs(
+    name = "messages_cc_srcs",
+    src = ":messages",
+)
+
+lcm_py_library_srcs(
+    name = "messages_py_srcs",
+    src = ":messages",
+)
+
+lcm_java_library_srcs(
+    name = "messages_java_srcs",
+    src = ":messages",
+)
+
+cc_library(
     name = "lcmtypes_drake_jaco_driver_cc",
-    lcm_package = "drake_jaco_driver",
-    lcm_srcs = LCM_SRCS,
+    srcs = [":messages_cc_srcs"],
+    includes = ["."],
 )
 
-lcm_py_library(
+py_library(
     name = "lcmtypes_drake_jaco_driver_py",
-    add_current_package_to_imports = True,
-    lcm_package = "drake_jaco_driver",
-    lcm_srcs = LCM_SRCS,
-    deps = ["//:module_py"],
+    srcs = [":messages_py_srcs"],
+    imports = ["."],
 )
 
-lcm_java_library(
+java_library(
     name = "lcmtypes_drake_jaco_driver_java",
-    lcm_package = "drake_jaco_driver",
-    lcm_srcs = LCM_SRCS,
+    srcs = [":messages_java_srcs"],
+    deps = ["@lcm//lcm-java"],
 )

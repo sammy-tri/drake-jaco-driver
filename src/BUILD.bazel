@@ -1,5 +1,3 @@
-# -*- python -*-
-
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
@@ -35,7 +33,7 @@ cc_binary(
         "@drake//lcmtypes:jaco",
         "@gflags//:gflags",
         "@jaco_sdk//:usb_command_layer",
-        "@lcm",
+        "@lcm//lcm:lcm-static",
     ],
 )
 
@@ -52,7 +50,7 @@ cc_binary(
         "@drake//lcmtypes:jaco",
         "@gflags//:gflags",
         "@jaco_sdk//:ethernet_command_layer",
-        "@lcm",
+        "@lcm//lcm:lcm-static",
     ],
 )
 
@@ -70,7 +68,7 @@ cc_binary(
         "@drake//lcmtypes:panda",
         "@gflags//:gflags",
         "@jaco_sdk//:ethernet_command_layer",
-        "@lcm",
+        "@lcm//lcm:lcm-static",
     ],
 )
 
