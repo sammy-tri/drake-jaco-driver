@@ -1,5 +1,3 @@
-# -*- python -*-
-
 package(default_visibility = ["//visibility:public"])
 
 # Declare a top-level model to facilitate importing the lcmtypes in
