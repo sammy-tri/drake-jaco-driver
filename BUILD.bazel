@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+load("@rules_python//python:py_library.bzl", "py_library")
+
 # Declare a top-level model to facilitate importing the lcmtypes in
 # external packages.
 py_library(
